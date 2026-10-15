@@ -1,0 +1,36 @@
+# Workspace root. Each folder below is its own package with its own pyproject.toml:
+#   core/       t1d-core       shared settings (paths, config)
+#   ontology/   t1d-ontology   ontology model, validation, actions, client SDK
+#   pipelines/  t1d-pipelines  source ingestion (landing -> raw -> transformed -> clean) + quality
+[project]
+name = "pranay360-data"
+version = "0.1.0"
+description = "Pranay360 backend data product: T1D + Oura ontology over a clean data layer"
+requires-python = ">=3.12"
+dependencies = ["t1d-core", "t1d-ontology", "t1d-pipelines", "duckdb>=1.1", "polars>=1.0"]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["core", "ontology", "pipelines"]
+
+[tool.uv.sources]
+t1d-core = { workspace = true }
+t1d-ontology = { workspace = true }
+t1d-pipelines = { workspace = true }
+
+[dependency-groups]
+dev = ["pytest>=9.1", "ruff>=0.14"]
+
+[tool.pytest.ini_options]
+testpaths = ["ontology/tests", "pipelines/tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501", "E731"]

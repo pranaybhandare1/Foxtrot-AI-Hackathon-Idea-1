@@ -1,0 +1,17 @@
+[project]
+name = "t1d-pipelines"
+version = "0.1.0"
+description = "Source pipelines (CareLink today; Oura, Apple Health next): landing -> raw -> transformed -> clean, plus data-quality checks"
+requires-python = ">=3.12"
+dependencies = ["t1d-core", "t1d-ontology", "polars>=1.44", "duckdb>=1.5", "pyyaml>=6.0"]
+
+[project.scripts]
+t1d = "t1d_pipelines.cli:main"
+
+[tool.uv.sources]
+t1d-core = { workspace = true }
+t1d-ontology = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"

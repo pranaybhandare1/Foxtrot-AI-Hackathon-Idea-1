@@ -1,0 +1,670 @@
+# T1D ontology: the semantic layer over the clean datasets.
+#
+# Object types map 1:1 to clean-layer tables (backing datasets). Link types are declared by
+# a foreign-key property. `t1d run` validates the data against this file on every build:
+#   - primary keys unique and non-null
+#   - every declared property present with the declared type (undeclared columns = error)
+#   - every link's foreign key resolves (dangling references = error)
+#
+# Types: string | integer | double | boolean | date | timestamp
+# Timestamps: *_utc is absolute (join key for other sources), *_local is your wall clock.
+# Lineage: event-derived objects carry batch_id/source_file/source_line back to the CSV row.
+
+ontology: t1d
+version: 1
+
+# Type groups (Foundry "groups"): how the Ontology Manager organises object types.
+groups:
+  calendar: {display_name: Calendar, description: "The day spine every source hangs off"}
+  glucose: {display_name: Glucose, description: "CGM readings, the 5-min grid, excursions and meter checks"}
+  insulin_meals: {display_name: Insulin & meals, description: "Boluses, Bolus Wizard calculations and meals"}
+  devices: {display_name: Devices & pump, description: "Sensors, reservoir changes, alerts, suspensions, clock"}
+  recovery: {display_name: Sleep & recovery, description: "Oura sleep, readiness, activity, workouts, heart rate"}
+  lifestyle: {display_name: Lifestyle (write-back), description: "Objects you create through actions: experiments and notes"}
+
+object_types:
+
+  Day:
+    description: >
+      One local calendar day. The hub every source hangs off: CGM metrics, insulin,
+      carbs, excursions, device state. Future Oura / Apple Health day-level objects link here.
+    backing_dataset: clean/day
+    primary_key: date_local
+    display: {group: calendar, icon: calendar, color: "#64748b"}
+    sources: [carelink, oura]
+    title: date_local
+    properties:
+      date_local: {type: date}
+      weekday: {type: string}
+      grid_bins: {type: integer, description: 5-min bins in the local day (287/289 on clock-change days)}
+      bins_with_data: {type: integer}
+      cgm_coverage: {type: double, description: Share of bins with a CGM value}
+      is_valid_cgm_day: {type: boolean, description: Coverage >= 70% and not a partial export day}
+      is_partial_day: {type: boolean, description: First or last day of the export}
+      mean_sg_mgdl: {type: double}
+      sd_sg_mgdl: {type: double}
+      cv_pct: {type: double, description: Coefficient of variation (target <= 36%)}
+      gmi_pct: {type: double, description: Glucose management indicator (estimated A1c)}
+      tir: {type: double, description: Time in range 70-180 mg/dL (share)}
+      titr: {type: double, description: Time in tight range 70-140 mg/dL (share)}
+      tbr: {type: double, description: Time below 70 mg/dL (share)}
+      tbr_level2: {type: double, description: Time below 54 mg/dL (share)}
+      tar: {type: double, description: Time above 180 mg/dL (share)}
+      tar_level2: {type: double, description: Time above 250 mg/dL (share)}
+      mean_sg_overnight_mgdl: {type: double, description: Mean SG 00:00-06:00 local}
+      bolus_u: {type: double, description: Insulin from user boluses}
+      auto_insulin_u: {type: double, description: SmartGuard auto basal + auto corrections (pump daily aggregate)}
+      tdd_u: {type: double, description: Total daily dose = bolus_u + auto_insulin_u}
+      auto_insulin_share: {type: double, description: "How hard the loop worked: auto_insulin_u / tdd_u"}
+      n_boluses: {type: integer}
+      n_correction_boluses: {type: integer}
+      n_manual_mode_boluses: {type: integer, description: Boluses given with SmartGuard off}
+      n_meals: {type: integer}
+      carbs_g: {type: double}
+      n_hypo: {type: integer}
+      n_hypo_level2: {type: integer}
+      n_hypo_nocturnal: {type: integer}
+      hypo_minutes: {type: integer}
+      n_hyper: {type: integer, description: Episodes >250 mg/dL}
+      n_alerts: {type: integer}
+      n_low_alerts: {type: integer}
+      n_high_alerts: {type: integer}
+      n_smartguard_exits: {type: integer}
+      n_signal_loss_alerts: {type: integer}
+      suspended_minutes: {type: double}
+      n_suspensions: {type: integer}
+      sensor_id: {type: string, description: CGM sensor worn most of the day}
+      sensor_day: {type: integer, description: Day of sensor wear at local noon (1 = first day)}
+      set_id: {type: string, description: Infusion set worn most of the day}
+      set_day: {type: integer, description: Day of infusion-set wear at local noon}
+      utc_offset_min: {type: double}
+      is_travel_day: {type: boolean}
+      n_clock_changes: {type: integer}
+
+  GlucoseReading:
+    description: One CGM value as received by the pump (Abbott Instinct). ~10% are late re-receipts of the same sample; use Glucose5Min for analysis.
+    backing_dataset: clean/glucose_reading
+    primary_key: reading_id
+    display: {group: glucose, icon: droplet, color: "#10b981"}
+    sources: [carelink]
+    title: ts_local
+    properties:
+      reading_id: {type: string}
+      ts_utc: {type: timestamp}
+      ts_local: {type: timestamp}
+      date_local: {type: date}
+      utc_offset_min: {type: double}
+      sg_mgdl: {type: double}
+      at_upper_limit: {type: boolean, description: Sensor reports 400 = ">=400"}
+      at_lower_limit: {type: boolean, description: Sensor reports 40 = "<=40"}
+      ts_repaired: {type: boolean, description: Timestamp had a whole-day error that was repaired}
+      sensor_id: {type: string}
+      batch_id: {type: string}
+      source_file: {type: string}
+      source_line: {type: integer}
+
+  CgmSensor:
+    description: One physical Instinct sensor, from pairing until the next sensor is paired.
+    backing_dataset: clean/cgm_sensor
+    primary_key: sensor_id
+    display: {group: devices, icon: sensor, color: "#8b5cf6"}
+    sources: [carelink]
+    title: sensor_id
+    properties:
+      sensor_id: {type: string, description: Sensor serial as reported over BLE}
+      sensor_number: {type: integer, description: 1 = first Instinct sensor}
+      first_paired_utc: {type: timestamp}
+      first_reading_utc: {type: timestamp}
+      last_reading_utc: {type: timestamp}
+      removed_utc: {type: timestamp}
+      window_end_utc: {type: timestamp, description: Next sensor's pairing (null for the current one)}
+      end_state: {type: string, description: removed | replaced | active_at_export}
+      warmup_minutes: {type: double}
+      wear_days: {type: double}
+      is_full_wear: {type: boolean, description: Wear >= 14 days}
+      n_pairings: {type: integer, description: BLE (re)pairings; many = connectivity trouble}
+      n_readings: {type: integer}
+      expected_bins: {type: integer}
+      bins_with_data: {type: integer}
+      coverage: {type: double}
+      n_sensor_errors: {type: integer}
+      n_failed_bg_checks: {type: integer}
+      n_signal_loss_alerts: {type: integer}
+
+  InfusionSet:
+    description: One reservoir + infusion-set change (rewind, tubing fill, cannula fill) and its wear period.
+    backing_dataset: clean/infusion_set
+    primary_key: set_id
+    display: {group: devices, icon: syringe, color: "#6366f1"}
+    sources: [carelink]
+    title: started_local
+    properties:
+      set_id: {type: string}
+      change_started_utc: {type: timestamp}
+      started_utc: {type: timestamp, description: Last prime of the change = insulin flowing again}
+      started_local: {type: timestamp}
+      ended_utc: {type: timestamp}
+      wear_hours: {type: double}
+      reservoir_fill_u: {type: double}
+      tubing_prime_u: {type: double}
+      cannula_prime_u: {type: double}
+      had_rewind: {type: boolean}
+      started_before_era: {type: boolean, description: Set was already in place when the Instinct era began}
+      batch_id: {type: string}
+      source_file: {type: string}
+      source_line: {type: integer}
+
+  Bolus:
+    description: >
+      One user-initiated bolus, assembled from its programmed / delivered / canceled
+      fragments. SmartGuard's own auto-corrections are NOT here. The pump only exports them
+      as a daily total (Day.auto_insulin_u).
+    backing_dataset: clean/bolus
+    primary_key: bolus_id
+    display: {group: insulin_meals, icon: syringe, color: "#3b82f6"}
+    sources: [carelink]
+    title: start_utc
+    properties:
+      bolus_id: {type: string}
+      bolus_number: {type: integer}
+      start_utc: {type: timestamp}
+      programmed_utc: {type: timestamp}
+      programmed_local: {type: timestamp}
+      delivered_utc: {type: timestamp}
+      delivery_minutes: {type: double}
+      date_local: {type: date}
+      units_programmed: {type: double}
+      units_delivered: {type: double}
+      is_partial: {type: boolean}
+      was_canceled: {type: boolean}
+      cancel_reason: {type: string}
+      bolus_type: {type: string}
+      bolus_source: {type: string}
+      bolus_kind: {type: string, description: meal_and_correction | correction | wizard_manual_mode}
+      pump_mode: {type: string, description: smartguard | manual}
+      completion: {type: string, description: delivered | no_delivery_record | no_programmed_record}
+      batch_id: {type: string}
+      source_file: {type: string}
+      source_line: {type: integer}
+
+  BolusWizardCalc:
+    description: One Bolus Wizard calculation, meaning what you entered and what the pump recommended.
+    backing_dataset: clean/bolus_wizard_calc
+    primary_key: wizard_id
+    display: {group: insulin_meals, icon: calculator, color: "#0ea5e9"}
+    sources: [carelink]
+    title: ts_local
+    properties:
+      wizard_id: {type: string}
+      ts_utc: {type: timestamp}
+      ts_local: {type: timestamp}
+      date_local: {type: date}
+      carbs_g: {type: double}
+      bg_input_mgdl: {type: double}
+      carb_ratio_g_per_u: {type: double, description: Carb-ratio setting in effect}
+      isf_mgdl_per_u: {type: double, description: Sensitivity setting (only populated in manual mode)}
+      target_low_mgdl: {type: double}
+      target_high_mgdl: {type: double}
+      food_estimate_u: {type: double}
+      correction_estimate_u: {type: double}
+      active_insulin_u: {type: double}
+      estimate_u: {type: double}
+      final_estimate_u: {type: double}
+      unabsorbed_insulin_u: {type: double}
+      status: {type: string, description: Delivered | Not Delivered}
+      bolus_id: {type: string}
+      batch_id: {type: string}
+      source_file: {type: string}
+      source_line: {type: integer}
+
+  Meal:
+    description: >
+      A carb entry (wizard with carbs > 0) and its glucose response over the next 4 h.
+      Meals eaten without a wizard entry are invisible to this source.
+    backing_dataset: clean/meal
+    primary_key: meal_id
+    display: {group: insulin_meals, icon: utensils, color: "#d946ef"}
+    sources: [carelink]
+    title: ts_local
+    properties:
+      meal_id: {type: string}
+      wizard_id: {type: string}
+      bolus_id: {type: string}
+      ts_utc: {type: timestamp}
+      ts_local: {type: timestamp}
+      date_local: {type: date}
+      hour_local: {type: integer}
+      meal_slot: {type: string, description: breakfast | lunch | dinner | late_night (by local hour)}
+      carbs_g: {type: double}
+      carb_ratio_g_per_u: {type: double}
+      bg_input_mgdl: {type: double}
+      active_insulin_u: {type: double}
+      food_estimate_u: {type: double}
+      correction_estimate_u: {type: double}
+      estimate_u: {type: double}
+      bolus_units_delivered: {type: double}
+      effective_g_per_u: {type: double, description: carbs / insulin actually delivered}
+      status: {type: string}
+      sg_at_meal_mgdl: {type: double}
+      sg_15min_before_mgdl: {type: double}
+      trend_at_meal_mgdl_per_min: {type: double, description: "> 0 = already rising at bolus (late pre-bolus)"}
+      peak_sg_0_3h_mgdl: {type: double}
+      minutes_to_peak: {type: integer}
+      rise_to_peak_mgdl: {type: double}
+      sg_2h_mgdl: {type: double}
+      sg_3h_mgdl: {type: double}
+      delta_3h_mgdl: {type: double}
+      sg_end_window_mgdl: {type: double}
+      nadir_sg_window_mgdl: {type: double}
+      low_in_window: {type: boolean}
+      tir_window: {type: double}
+      cgm_coverage_window: {type: double}
+      minutes_to_next_meal: {type: double}
+      next_meal_in_window: {type: boolean, description: Confounder, another meal within the response window}
+      sensor_id: {type: string}
+      sensor_age_hours: {type: double}
+      set_id: {type: string}
+      set_age_hours: {type: double}
+      batch_id: {type: string}
+      source_file: {type: string}
+      source_line: {type: integer}
+
+  GlycemicExcursion:
+    description: >
+      A hypo (<70 for >=15 min; level 2 if <54 for >=15 min) or hyper (>250 for >=15 min)
+      episode, with the insulin/carb context of the 4 h before it.
+    backing_dataset: clean/glycemic_excursion
+    primary_key: excursion_id
+    display: {group: glucose, icon: wave, color: "#ef4444"}
+    sources: [carelink]
+    title: start_local
+    properties:
+      excursion_id: {type: string}
+      kind: {type: string, description: hypo | hyper}
+      level: {type: integer}
+      start_utc: {type: timestamp}
+      end_utc: {type: timestamp}
+      start_local: {type: timestamp}
+      date_local: {type: date}
+      duration_min: {type: integer}
+      extreme_sg_mgdl: {type: double, description: Nadir for hypos, peak for hypers}
+      bins_with_data: {type: integer}
+      is_nocturnal: {type: boolean, description: Started 00:00-06:00 local}
+      bolus_u_prior_4h: {type: double}
+      carbs_g_prior_4h: {type: double}
+      minutes_since_last_bolus: {type: double}
+      sensor_id: {type: string}
+      sensor_age_hours: {type: double}
+      set_id: {type: string}
+      set_age_hours: {type: double}
+
+  PumpAlert:
+    description: One pump alert or alarm, with when you cleared it.
+    backing_dataset: clean/pump_alert
+    primary_key: alert_id
+    display: {group: devices, icon: bell, color: "#f59e0b"}
+    sources: [carelink]
+    title: alert_type
+    properties:
+      alert_id: {type: string}
+      ts_utc: {type: timestamp}
+      ts_local: {type: timestamp}
+      date_local: {type: date}
+      alert_type: {type: string}
+      category: {type: string, description: glucose_low | glucose_high | sensor | smartguard | insulin_delivery | power | pump_device | other}
+      channel: {type: string, description: tone | siren | vibrate}
+      value_mgdl: {type: double}
+      is_quiet: {type: boolean}
+      alert_raw: {type: string}
+      cleared_utc: {type: timestamp}
+      response_minutes: {type: double}
+      batch_id: {type: string}
+      source_file: {type: string}
+      source_line: {type: integer}
+
+  PumpSuspension:
+    description: A period with insulin delivery stopped (by you, by an alarm, or by SmartGuard for a predicted low).
+    backing_dataset: clean/pump_suspension
+    primary_key: suspension_id
+    display: {group: devices, icon: pause, color: "#94a3b8"}
+    sources: [carelink]
+    title: reason
+    properties:
+      suspension_id: {type: string}
+      start_utc: {type: timestamp}
+      start_local: {type: timestamp}
+      end_utc: {type: timestamp}
+      duration_min: {type: double}
+      date_local: {type: date}
+      reason: {type: string}
+      reasons: {type: string}
+      batch_id: {type: string}
+      source_file: {type: string}
+      source_line: {type: integer}
+
+  FingerstickBg:
+    description: A meter BG, paired with the nearest CGM reading (+/- 5 min) for sensor-accuracy analysis.
+    backing_dataset: clean/fingerstick_bg
+    primary_key: bg_id
+    display: {group: glucose, icon: drop_check, color: "#14b8a6"}
+    sources: [carelink]
+    title: ts_local
+    properties:
+      bg_id: {type: string}
+      ts_utc: {type: timestamp}
+      ts_local: {type: timestamp}
+      date_local: {type: date}
+      bg_mgdl: {type: double}
+      bg_sources: {type: string}
+      sensor_sg_mgdl: {type: double}
+      sensor_ts_utc: {type: timestamp}
+      sensor_minus_bg_mgdl: {type: double}
+      abs_rel_diff_pct: {type: double}
+      sensor_id: {type: string}
+      batch_id: {type: string}
+      source_file: {type: string}
+      source_line: {type: integer}
+
+  ClockChange:
+    description: A manual change of the pump clock (DST, travel, correction). Useful for jet-lag analysis.
+    backing_dataset: clean/clock_change
+    primary_key: clock_change_id
+    display: {group: devices, icon: clock, color: "#a3a3a3"}
+    sources: [carelink]
+    title: ts_utc
+    properties:
+      clock_change_id: {type: string}
+      ts_utc: {type: timestamp}
+      ts_device_old: {type: timestamp}
+      ts_device_new: {type: timestamp}
+      delta_min: {type: double}
+      device_offset_min_before: {type: double}
+      device_offset_min_after: {type: double}
+      is_timezone_change: {type: boolean}
+      batch_id: {type: string}
+
+
+  # ---------------------------------------------------------------- Oura (source: oura)
+  OuraDay:
+    description: >
+      Oura daily summary for a day (from the start of the CGM era, including days after the latest pump export): sleep / readiness / activity / stress scores, temperature deviation, HRV, and the main night with its overnight glucose.
+    optional: true   # source may be absent (no Oura connected): empty table is valid
+    backing_dataset: clean/oura_day
+    primary_key: date_local
+    display: {group: recovery, icon: ring, color: "#6366f1"}
+    sources: [oura]
+    title: date_local
+    properties:
+      date_local: {type: date, description: "Local calendar day (Oura's day attribution = the day you woke up)"}
+      sleep_score: {type: integer, description: "Oura sleep score (0-100)"}
+      sleep_c_deep_sleep: {type: integer}
+      sleep_c_efficiency: {type: integer}
+      sleep_c_latency: {type: integer}
+      sleep_c_rem_sleep: {type: integer}
+      sleep_c_restfulness: {type: integer}
+      sleep_c_timing: {type: integer}
+      sleep_c_total_sleep: {type: integer}
+      readiness_score: {type: integer, description: "Oura readiness score (0-100)"}
+      temperature_deviation: {type: double, description: "Skin temperature vs. your baseline, °C (illness / cycle signal)"}
+      temperature_trend_deviation: {type: double, description: "Smoothed temperature deviation, °C"}
+      readiness_c_activity_balance: {type: integer}
+      readiness_c_body_temperature: {type: integer}
+      readiness_c_hrv_balance: {type: integer, description: "Readiness contributor: recent HRV vs. long-term (0-100)"}
+      readiness_c_previous_day_activity: {type: integer}
+      readiness_c_previous_night: {type: integer}
+      readiness_c_recovery_index: {type: integer, description: "Readiness contributor: how quickly HR settled overnight (0-100)"}
+      readiness_c_resting_heart_rate: {type: integer, description: "Readiness contributor: resting HR (0-100)"}
+      readiness_c_sleep_balance: {type: integer}
+      readiness_c_sleep_regularity: {type: integer}
+      activity_score: {type: integer}
+      steps: {type: integer, description: "Steps"}
+      active_calories: {type: integer}
+      total_calories: {type: integer}
+      high_activity_min: {type: double, description: "Minutes of high-intensity activity"}
+      medium_activity_min: {type: double}
+      low_activity_min: {type: double}
+      sedentary_min: {type: double}
+      non_wear_min: {type: double, description: "Minutes the ring was off"}
+      walking_distance_m: {type: integer}
+      stress_high_min: {type: double, description: "Minutes of high daytime stress"}
+      recovery_high_min: {type: double, description: "Minutes of high daytime recovery"}
+      stress_summary: {type: string}
+      resilience_level: {type: string, description: "limited | adequate | solid | strong | exceptional"}
+      spo2_pct: {type: double, description: "Average overnight SpO2 (%)"}
+      breathing_disturbance_index: {type: integer}
+      vascular_age: {type: integer}
+      vo2_max: {type: integer}
+      main_sleep_id: {type: string, description: "The night that ends on this day (FK to SleepSession)"}
+      bedtime_start_local: {type: timestamp}
+      bedtime_end_local: {type: timestamp}
+      total_sleep_min: {type: double, description: "Main night total sleep (min)"}
+      sleep_efficiency: {type: double}
+      average_hrv: {type: double, description: "Main night average HRV (ms)"}
+      lowest_heart_rate: {type: double, description: "Main night lowest HR (bpm)"}
+      average_breath: {type: double}
+      overnight_mean_sg_mgdl: {type: double, description: "Mean glucose during the main night"}
+      overnight_tir: {type: double, description: "Time 70-180 during the main night (share)"}
+      overnight_tbr: {type: double, description: "Time <70 during the main night (share)"}
+      overnight_hypos: {type: integer, description: "Hypo episodes starting during the main night"}
+
+  SleepSession:
+    description: >
+      One Oura sleep period (main night or nap) with sleep metrics and the glucose / insulin picture while in bed.
+    optional: true   # source may be absent (no Oura connected): empty table is valid
+    backing_dataset: clean/sleep_session
+    primary_key: sleep_id
+    display: {group: recovery, icon: moon, color: "#818cf8"}
+    sources: [oura]
+    title: bedtime_start_local
+    properties:
+      sleep_id: {type: string, description: "Oura sleep document id"}
+      date_local: {type: date}
+      sleep_type: {type: string, description: "long_sleep (main night) | sleep | late_nap | rest"}
+      bedtime_start_utc: {type: timestamp, description: "In bed (UTC)"}
+      bedtime_end_utc: {type: timestamp, description: "Out of bed (UTC)"}
+      bedtime_start_local: {type: timestamp, description: "In bed, local time from Oura's observed offset"}
+      bedtime_end_local: {type: timestamp, description: "Out of bed, local time"}
+      utc_offset_min: {type: integer, description: "Phone time zone observed by Oura"}
+      time_in_bed_min: {type: double}
+      total_sleep_min: {type: double}
+      deep_sleep_min: {type: double}
+      rem_sleep_min: {type: double}
+      light_sleep_min: {type: double}
+      awake_min: {type: double}
+      latency_min: {type: double}
+      efficiency: {type: double, description: "Sleep efficiency (%)"}
+      average_hrv: {type: double, description: "Average HRV (ms, rMSSD)"}
+      average_heart_rate: {type: double}
+      lowest_heart_rate: {type: double, description: "Lowest HR (bpm)"}
+      average_breath: {type: double}
+      restless_periods: {type: double}
+      mean_sg_mgdl: {type: double, description: "Mean glucose while in bed"}
+      min_sg_mgdl: {type: double, description: "Lowest glucose while in bed"}
+      max_sg_mgdl: {type: double}
+      tir: {type: double, description: "Time 70-180 while in bed (share)"}
+      tbr: {type: double, description: "Time <70 while in bed (share)"}
+      cgm_coverage: {type: double, description: "Share of in-bed 5-min bins with CGM data"}
+      sg_at_bedtime_mgdl: {type: double, description: "Last CGM value at/before bedtime"}
+      sg_at_wake_mgdl: {type: double, description: "Last CGM value at/before waking"}
+      n_hypo: {type: integer, description: "Hypo episodes starting while in bed"}
+      bolus_u_3h_before_bed: {type: double, description: "Bolus insulin in the 3 h before bed (U)"}
+
+  Workout:
+    description: >
+      One Oura-detected or logged workout, with glucose before, during and 12 h after (delayed-low analysis).
+    optional: true   # source may be absent (no Oura connected): empty table is valid
+    backing_dataset: clean/workout
+    primary_key: workout_id
+    display: {group: recovery, icon: activity, color: "#22c55e"}
+    sources: [oura]
+    title: start_local
+    properties:
+      workout_id: {type: string, description: "Oura workout id"}
+      date_local: {type: date}
+      activity: {type: string, description: "Oura activity type (walking, cycling, flexibility, …)"}
+      intensity: {type: string}
+      source: {type: string, description: "autodetected | confirmed | manual | workout_heart_rate"}
+      label: {type: string}
+      start_utc: {type: timestamp}
+      end_utc: {type: timestamp}
+      start_local: {type: timestamp, description: "Start, local time from Oura's observed offset"}
+      end_local: {type: timestamp}
+      utc_offset_min: {type: integer}
+      duration_min: {type: double, description: "Duration (min)"}
+      calories: {type: double}
+      distance_m: {type: double}
+      sg_at_start_mgdl: {type: double, description: "Last CGM value at/before the start"}
+      min_sg_during_mgdl: {type: double, description: "Lowest glucose during the workout"}
+      sg_at_end_mgdl: {type: double, description: "Last CGM value at/before the end"}
+      min_sg_12h_after_mgdl: {type: double, description: "Lowest glucose in the 12 h after"}
+      low_within_12h: {type: boolean, description: "A hypo episode started during or within 12 h after"}
+      carbs_g_2h_before: {type: double, description: "Carbs entered in the 2 h before (g)"}
+      bolus_u_2h_before: {type: double, description: "Bolus insulin in the 2 h before (U)"}
+      suspended_min_during: {type: double, description: "Minutes the pump was suspended during the workout"}
+
+
+  # ---------------------------------------------------------------- write-back (created by actions, not pipelines)
+  Experiment:
+    description: >
+      A lifestyle experiment: something you will try (e.g. "pre-bolus dinner 15 min earlier") for a period,
+      with the metric the platform tracks against your baseline. Created and updated through actions.
+    backing_dataset: writeback/experiment
+    primary_key: experiment_id
+    display: {group: lifestyle, icon: flask, color: "#f97316"}
+    sources: [writeback]
+    title: title
+    optional: true
+    properties:
+      experiment_id: {type: string}
+      title: {type: string}
+      hypothesis: {type: string, description: "What you expect to happen"}
+      insight_id: {type: string, description: "The insight that prompted it (optional)"}
+      metric: {type: string, description: "Tracked metric key (see the experiment metric catalog)"}
+      better: {type: string, description: "higher | lower: which direction is an improvement"}
+      start_date: {type: date}
+      end_date: {type: date}
+      status: {type: string, description: "active | completed | abandoned"}
+      notes: {type: string}
+      created_at: {type: timestamp}
+      updated_at: {type: timestamp}
+
+  DayNote:
+    description: >
+      A journal note on a day (illness, stress, travel, new routine…). Context the devices cannot see.
+    backing_dataset: writeback/day_note
+    primary_key: note_id
+    display: {group: lifestyle, icon: note, color: "#eab308"}
+    sources: [writeback]
+    title: text
+    optional: true
+    properties:
+      note_id: {type: string}
+      date_local: {type: date}
+      text: {type: string}
+      tags: {type: string, description: "Comma-separated tags"}
+      created_at: {type: timestamp}
+
+# Time series that are not objects (too dense), keyed and linked like objects.
+datasets:
+  Glucose5Min:
+    description: >
+      Regular 5-min CGM grid over the whole era, gaps included (has_data = false). The
+      analysis workhorse for TIR, meal responses and excursions.
+    backing_dataset: clean/glucose_5min
+    primary_key: bin_start_utc
+    display: {group: glucose, icon: grid, color: "#059669"}
+    sources: [carelink]
+    properties:
+      bin_start_utc: {type: timestamp}
+      bin_start_local: {type: timestamp}
+      date_local: {type: date}
+      utc_offset_min: {type: double}
+      sg_mgdl: {type: double}
+      n_readings: {type: integer}
+      has_data: {type: boolean}
+      sensor_id: {type: string}
+      sensor_age_hours: {type: double}
+      set_id: {type: string}
+      set_age_hours: {type: double}
+
+  HeartRate5Min:
+    description: >
+      Oura heart rate in 5-minute bins aligned to the glucose grid (Glucose5Min.bin_start_utc).
+    optional: true   # source may be absent (no Oura connected): empty table is valid
+    backing_dataset: clean/heart_rate_5min
+    primary_key: bin_start_utc
+    display: {group: recovery, icon: heart, color: "#f43f5e"}
+    sources: [oura]
+    properties:
+      bin_start_utc: {type: timestamp, description: "5-min bin (same grid as Glucose5Min)"}
+      mean_bpm: {type: double, description: "Mean heart rate in the bin"}
+      max_bpm: {type: integer, description: "Max heart rate in the bin"}
+      n_samples: {type: integer, description: "Samples in the bin (dense during workouts)"}
+      source: {type: string, description: "Dominant Oura source: awake | rest | workout | sleep"}
+
+# Links. `required: false` = cross-source link whose target may not exist yet (e.g. Oura nights after the
+# latest CareLink export): unresolved keys are counted, not fatal. Same-source links must always resolve.
+link_types:
+  # name: {from: <many side>.<fk property>, to: <one side>}
+  day_readings:        {from: GlucoseReading.date_local, to: Day}
+  day_boluses:         {from: Bolus.date_local, to: Day}
+  day_meals:           {from: Meal.date_local, to: Day}
+  day_excursions:      {from: GlycemicExcursion.date_local, to: Day}
+  day_alerts:          {from: PumpAlert.date_local, to: Day}
+  day_suspensions:     {from: PumpSuspension.date_local, to: Day}
+  day_fingersticks:    {from: FingerstickBg.date_local, to: Day}
+  day_sensor:          {from: Day.sensor_id, to: CgmSensor}
+  day_set:             {from: Day.set_id, to: InfusionSet}
+  sensor_readings:     {from: GlucoseReading.sensor_id, to: CgmSensor}
+  sensor_meals:        {from: Meal.sensor_id, to: CgmSensor}
+  sensor_excursions:   {from: GlycemicExcursion.sensor_id, to: CgmSensor}
+  sensor_fingersticks: {from: FingerstickBg.sensor_id, to: CgmSensor}
+  set_meals:           {from: Meal.set_id, to: InfusionSet}
+  set_excursions:      {from: GlycemicExcursion.set_id, to: InfusionSet}
+  wizard_bolus:        {from: BolusWizardCalc.bolus_id, to: Bolus}
+  meal_wizard:         {from: Meal.wizard_id, to: BolusWizardCalc}
+  meal_bolus:          {from: Meal.bolus_id, to: Bolus}
+  grid_day:            {from: Glucose5Min.date_local, to: Day}
+  grid_sensor:         {from: Glucose5Min.sensor_id, to: CgmSensor}
+  grid_set:            {from: Glucose5Min.set_id, to: InfusionSet}
+  oura_day_day:        {from: OuraDay.date_local, to: Day, required: false}
+  oura_day_main_sleep: {from: OuraDay.main_sleep_id, to: SleepSession}
+  day_sleeps:          {from: SleepSession.date_local, to: Day, required: false}
+  day_workouts:        {from: Workout.date_local, to: Day, required: false}
+  hr_grid:             {from: HeartRate5Min.bin_start_utc, to: Glucose5Min, required: false}
+  day_notes:           {from: DayNote.date_local, to: Day}
+
+# Action types (Foundry "actions"): the only way the application layer writes to the ontology.
+# Parameters are validated against these specs; each action creates or modifies one object type.
+action_types:
+  create_experiment:
+    display_name: Start an experiment
+    description: Commit to trying a change for a period; the platform tracks the metric against your baseline.
+    kind: create
+    object_type: Experiment
+    parameters:
+      title: {type: string, required: true}
+      hypothesis: {type: string}
+      insight_id: {type: string}
+      metric: {type: string, required: true, enum: [tir, overnight_tir, meal_rise, lunch_rise, dinner_rise, prebolus_share, late_meal_share, suspended_minutes, post_workout_low_rate, sleep_minutes, lows_per_week]}
+      better: {type: string, required: true, enum: [higher, lower]}
+      start_date: {type: date, required: true}
+      end_date: {type: date, required: true}
+  update_experiment:
+    display_name: Update experiment
+    description: Change an experiment's status or add notes.
+    kind: modify
+    object_type: Experiment
+    parameters:
+      experiment_id: {type: string, required: true}
+      status: {type: string, enum: [active, completed, abandoned]}
+      notes: {type: string}
+  add_day_note:
+    display_name: Add a note to a day
+    description: Record context for a day (illness, stress, travel, routine change).
+    kind: create
+    object_type: DayNote
+    parameters:
+      date_local: {type: date, required: true}
+      text: {type: string, required: true}
+      tags: {type: string}

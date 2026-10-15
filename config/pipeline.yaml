@@ -1,0 +1,60 @@
+# Pipeline configuration. Paths are relative to the repo root unless absolute.
+
+data_root: data            # landing/ raw/ transformed/ clean/ reports/ warehouse.duckdb (gitignored)
+
+sources:
+  carelink:
+    # Folder holding a CareLink "Data Export (CSV)" batch plus checksums.sha256.
+    # Each new export you drop in gets landed as its own immutable batch.
+    source_dir: /Users/pranaybhandare/CareLink-raw
+    file_glob: "carelink_*.csv"
+    checksum_file: checksums.sha256
+
+    # --- Clock model -------------------------------------------------------
+    # The pump stamps every event with its own wall clock, which you change by
+    # hand (DST, travel, mistakes). The pipeline reconstructs UTC by walking
+    # every "New Device Time" change backwards from the LAST clock segment,
+    # whose UTC offset must be known. The export was taken 2026-09-26 at home
+    # in New Jersey (EDT, UTC-4); the last clock change was 2026-09-20.
+    # Update this if a future export is taken while travelling.
+    final_device_clock_utc_offset: "-04:00"
+    # Home timezone (New Jersey = America/New_York). Segments whose offset is
+    # within 35 min of a home offset use the zone's DST rules (fixes DST applied
+    # late); any other offset is a trip and keeps the pump's own offset. Trips
+    # are only visible if you changed the pump clock while away.
+    home_timezone: America/New_York
+
+    # --- Scope ------------------------------------------------------------
+    # Clean layer = Abbott Instinct era only. Evidence (see reports/):
+    # firmware 27.11.6 installed 2026-02-08 17:30, first Instinct sensor
+    # (0Q4HRYM13) paired 18:53:41, first reading 19:49:27. Raw/transformed keep
+    # the full history (tagged with cgm_era) so nothing is lost.
+    instinct_era_start_device_local: "2026-02-08 18:53:41"
+
+  oura:
+    # OAuth2 app registered at https://cloud.ouraring.com/oauth/applications.
+    # Credentials come from .env (OURA_CLIENT_ID / OURA_CLIENT_SECRET), never this file.
+    redirect_uri: http://localhost:8766/callback
+    scopes: [email, personal, daily, heartrate, tag, workout, session, spo2, ring_configuration, stress, heart_health]
+    backfill_start: "2026-01-01"   # first pull reaches back to here (covers the whole Instinct era)
+    overlap_days: 3                # incremental pulls re-fetch the last N days (Oura revises recent data)
+    # date-ranged collections (start_date / end_date)
+    daily_endpoints: [daily_sleep, daily_readiness, daily_activity, daily_stress, daily_resilience,
+                      daily_spo2, daily_cardiovascular_age, sleep, sleep_time, workout, session, tag,
+                      enhanced_tag, rest_mode_period, vO2_max]
+    # datetime-ranged time series (start_datetime / end_datetime), pulled in chunks
+    timeseries_endpoints: [heartrate]
+    timeseries_chunk_days: 14
+
+analytics:
+  glucose_grid_minutes: 5
+  # International consensus (Battelino et al., 2019 / 2023) CGM thresholds, mg/dL
+  thresholds:
+    very_low: 54
+    low: 70
+    high: 180
+    very_high: 250
+  excursion_min_minutes: 15          # an episode must persist >= 15 min
+  excursion_end_minutes: 15          # ...and ends after >= 15 min back in range
+  valid_day_min_coverage: 0.70       # consensus: >= 70% CGM wear for a valid day
+  meal_window_hours: 4               # post-meal response window

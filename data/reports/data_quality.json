@@ -1,0 +1,254 @@
+[
+  {
+    "check_id": "L1",
+    "layer": "landing",
+    "severity": "error",
+    "title": "Landed files are byte-identical to what was recorded at landing",
+    "passed": true,
+    "detail": "23 files in 2 batch(es); changed since landing: none",
+    "status": "PASS"
+  },
+  {
+    "check_id": "L3",
+    "layer": "landing",
+    "severity": "warn",
+    "title": "Every landed file is listed in the export's checksums.sha256",
+    "passed": false,
+    "detail": "not in checksums.sha256 (hash recorded at landing instead): ['carelink_2026-09-26_to_2026-10-13.csv']. Add them to ~/CareLink-raw/checksums.sha256 to verify against the source.",
+    "status": "WARN"
+  },
+  {
+    "check_id": "L2",
+    "layer": "landing",
+    "severity": "error",
+    "title": "Export windows are contiguous (no gaps, no overlaps)",
+    "passed": true,
+    "detail": "windows chain day-to-day",
+    "status": "PASS"
+  },
+  {
+    "check_id": "R1",
+    "layer": "raw",
+    "severity": "error",
+    "title": "Every file has the pump, aggregated-insulin and sensor sections",
+    "passed": true,
+    "detail": "23 files, 212,690 rows; missing sections in: none",
+    "status": "PASS"
+  },
+  {
+    "check_id": "R2",
+    "layer": "raw",
+    "severity": "warn",
+    "title": "All files come from the same pump serial",
+    "passed": true,
+    "detail": "serials: ['NG*******H']",
+    "status": "PASS"
+  },
+  {
+    "check_id": "T1",
+    "layer": "transformed",
+    "severity": "info",
+    "title": "Rows that carry no payload (dropped from clean)",
+    "passed": false,
+    "detail": "1,063 payload-less rows (pump rows with only a timestamp, sensor start/end-of-day markers)",
+    "status": "NOTE"
+  },
+  {
+    "check_id": "T2",
+    "layer": "transformed",
+    "severity": "error",
+    "title": "Pump events: reconstructed UTC is monotonic in pump sequence",
+    "passed": true,
+    "detail": "0 backward steps > 60 s across 13,564 pump events",
+    "status": "PASS"
+  },
+  {
+    "check_id": "T3",
+    "layer": "transformed",
+    "severity": "error",
+    "title": "Sensor rows: reconstructed UTC is monotonic in receipt sequence",
+    "passed": true,
+    "detail": "0 backward steps > 2 min across 94,059 sensor rows",
+    "status": "PASS"
+  },
+  {
+    "check_id": "T4",
+    "layer": "transformed",
+    "severity": "info",
+    "title": "Timestamps repaired (whole-day sensor clock errors)",
+    "passed": false,
+    "detail": "10 rows repaired: [('sensor_exception', 10)]",
+    "status": "NOTE"
+  },
+  {
+    "check_id": "T5",
+    "layer": "transformed",
+    "severity": "error",
+    "title": "Pump and sensor clocks agree in every clock segment (alert values vs CGM)",
+    "passed": true,
+    "detail": "UTC-7h n=10 best shift +5 min (err 6 vs \u00b160 min 34); UTC-5h n=112 best shift +5 min (err 8 vs \u00b160 min 44); UTC-4h n=722 best shift +5 min (err 7 vs \u00b160 min 52); UTC+2h n=31 best shift +5 min (err 6 vs \u00b160 min 58)",
+    "status": "PASS"
+  },
+  {
+    "check_id": "T6",
+    "layer": "transformed",
+    "severity": "error",
+    "title": "Instinct era has no ISIG values (Abbott sensors don't report ISIG)",
+    "passed": true,
+    "detail": "0 ISIG values after era start; first Instinct reading 2026-02-09 01:50:40 UTC",
+    "status": "PASS"
+  },
+  {
+    "check_id": "T7",
+    "layer": "transformed",
+    "severity": "info",
+    "title": "Cross-row duplicates removed",
+    "passed": false,
+    "detail": "raw 212,690 rows -> transformed 108,555 (104,135 exact duplicates collapsed)",
+    "status": "NOTE"
+  },
+  {
+    "check_id": "C1",
+    "layer": "clean",
+    "severity": "error",
+    "title": "CGM values are within the sensor's reportable range (40-400)",
+    "passed": true,
+    "detail": "0 out-of-range of 81,159; 2 at 400 (= '>=400')",
+    "status": "PASS"
+  },
+  {
+    "check_id": "C2",
+    "layer": "clean",
+    "severity": "error",
+    "title": "5-min grid: at most 3 readings per bin, every bin has a UTC offset",
+    "passed": true,
+    "detail": "71,174 bins, 96.3% with data, max 3 readings/bin",
+    "status": "PASS"
+  },
+  {
+    "check_id": "C3",
+    "layer": "clean",
+    "severity": "warn",
+    "title": "Sensors: wear <= 15.5 days and coverage >= 90%",
+    "passed": true,
+    "detail": "20 sensors, median wear 14.3 d, median coverage 97.6%; ended early (<14 d): [('0R8G3HXHT', 8.672), ('0Q2DHPMTV', 10.172), ('0RFD2L014', 13.514), ('0RFD2H0JW', 13.951), ('0RDJKDAUF', 2.882), ('0TF90PG0R', 0.14)]; flagged: none",
+    "status": "PASS"
+  },
+  {
+    "check_id": "C4",
+    "layer": "clean",
+    "severity": "error",
+    "title": "Boluses: delivered <= programmed, non-negative delivery time",
+    "passed": true,
+    "detail": "1024 boluses; over-delivered 0; negative duration 0; partial 2",
+    "status": "PASS"
+  },
+  {
+    "check_id": "C5",
+    "layer": "clean",
+    "severity": "error",
+    "title": "Every delivered wizard calculation links to a bolus",
+    "passed": true,
+    "detail": "100.0% of 1024 delivered wizard calcs linked",
+    "status": "PASS"
+  },
+  {
+    "check_id": "C6",
+    "layer": "clean",
+    "severity": "error",
+    "title": "Day totals reconcile with their objects (insulin, carbs, hypos)",
+    "passed": true,
+    "detail": "differences: {'bolus_u': 0.0, 'carbs_g': 0.0, 'n_hypo': 0}",
+    "status": "PASS"
+  },
+  {
+    "check_id": "C7",
+    "layer": "clean",
+    "severity": "error",
+    "title": "Excursions of the same kind never overlap",
+    "passed": true,
+    "detail": "0 overlaps among 579 excursions",
+    "status": "PASS"
+  },
+  {
+    "check_id": "C8",
+    "layer": "clean",
+    "severity": "warn",
+    "title": "Days with CGM coverage below 70%",
+    "passed": false,
+    "detail": "2 of 248 days: [('2026-07-29', 0.5764), ('2026-09-25', 0.3438)]",
+    "status": "WARN"
+  },
+  {
+    "check_id": "C9",
+    "layer": "clean",
+    "severity": "warn",
+    "title": "Total daily dose within a plausible band (10-150 U) on full days",
+    "passed": false,
+    "detail": "median TDD 57.9 U; outside band: [('2026-09-26', None), ('2026-09-27', None)]",
+    "status": "WARN"
+  },
+  {
+    "check_id": "C10",
+    "layer": "clean",
+    "severity": "info",
+    "title": "Infusion sets replaced within 12 h (possible site failures)",
+    "passed": false,
+    "detail": "98 sets, median wear 64 h; <12 h: [('set_20260423T1207', 8.38), ('set_20260729T1328', 6.14), ('set_20260920T1732', 1.41), ('set_20260920T1856', 1.43)]",
+    "status": "NOTE"
+  },
+  {
+    "check_id": "C11",
+    "layer": "clean",
+    "severity": "info",
+    "title": "Sensor vs fingerstick agreement (MARD)",
+    "passed": true,
+    "detail": "298 paired fingersticks: MARD 12.9%, median bias -9 mg/dL (sensor minus meter)",
+    "status": "PASS"
+  },
+  {
+    "check_id": "O1",
+    "layer": "clean",
+    "severity": "warn",
+    "title": "Oura covers most CGM days (readiness present)",
+    "passed": true,
+    "detail": "85% of 248 CGM days have an Oura readiness score",
+    "status": "PASS"
+  },
+  {
+    "check_id": "O2",
+    "layer": "transformed",
+    "severity": "warn",
+    "title": "Local time agrees with Oura's observed time zone on every night",
+    "passed": true,
+    "detail": "207/207 nights agree; disagreeing: []",
+    "status": "PASS"
+  },
+  {
+    "check_id": "O3",
+    "layer": "transformed",
+    "severity": "info",
+    "title": "Pump-clock local times corrected using Oura",
+    "passed": false,
+    "detail": "3,455 events on 15 days re-timed to Oura's observed time zone (wrong pump clock or trips without a pump clock change)",
+    "status": "NOTE"
+  },
+  {
+    "check_id": "O4",
+    "layer": "clean",
+    "severity": "error",
+    "title": "Sleep sessions are well-formed (end after start, sleep <= time in bed)",
+    "passed": true,
+    "detail": "0 malformed of 334 sessions",
+    "status": "PASS"
+  },
+  {
+    "check_id": "O5",
+    "layer": "clean",
+    "severity": "error",
+    "title": "Heart rate is physiological (25-230 bpm)",
+    "passed": true,
+    "detail": "0 out-of-range of 42,038 5-min bins",
+    "status": "PASS"
+  }
+]

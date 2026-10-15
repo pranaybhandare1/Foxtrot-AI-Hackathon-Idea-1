@@ -1,0 +1,19 @@
+{
+  "era_start_utc": "2026-02-09 00:54:54",
+  "stray_cancel_records": 386,
+  "rows": {
+    "glucose_reading": 81159,
+    "glucose_5min": 71174,
+    "cgm_sensor": 20,
+    "infusion_set": 98,
+    "bolus": 1024,
+    "bolus_wizard_calc": 1065,
+    "meal": 935,
+    "glycemic_excursion": 579,
+    "pump_alert": 2118,
+    "pump_suspension": 426,
+    "fingerstick_bg": 309,
+    "clock_change": 23,
+    "day": 248
+  }
+}
