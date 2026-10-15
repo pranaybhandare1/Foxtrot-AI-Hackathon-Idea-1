@@ -16,8 +16,8 @@ import { TypeIcon } from "../components/TypeIcon";
 import { Loader } from "../components/ui";
 import { tooltip } from "../lib/chartTheme";
 import { num } from "../lib/format";
-import { useTheme } from "../state/theme";
 import { ObjectsBrowser } from "./ObjectsBrowser";
+import { MetadataEditor, WorkspaceHome } from "./ManagerPages";
 
 export const displayName = (api: string) => api.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/(\d+)([A-Z])/g, "$1 $2");
 const propDisplay = (api: string) => {
@@ -42,8 +42,8 @@ function useOm() {
 export function OntologyManager() {
   const q = useOm();
   const navigate = useNavigate();
-  const { mode, resolved, cycle } = useTheme();
   const [find, setFind] = useState("");
+  const [navOpen, setNavOpen] = useState(false);
   const hits = useMemo(
     () => (find && q.data ? q.data.object_types.filter((t) => `${t.name} ${displayName(t.name)} ${t.description}`.toLowerCase().includes(find.toLowerCase())).slice(0, 8) : []),
     [find, q.data],
@@ -54,12 +54,15 @@ export function OntologyManager() {
     </NavLink>
   );
   return (
-    <div className="om">
-      <aside className="glass om-side">
+    <div className={`foundry-shell ${navOpen ? "nav-open" : ""}`}>
+      <header className="foundry-topbar"><button className="sidebar-toggle" aria-label="Toggle resource navigation" aria-expanded={navOpen} onClick={() => setNavOpen(!navOpen)}><Icons.collapse /></button><NavLink to="/" className="foundry-wordmark"><svg className="brand-mark" width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden><circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="1.6"/><path d="M8 17c5-9 13-9 16-2-6 8-11 8-16 2Z" stroke="currentColor" strokeWidth="1.6"/><path d="M9 23 23 9" stroke="currentColor" strokeWidth="1.3"/></svg> Kaizen</NavLink><span className="topbar-divider"/><span className="topbar-workspace">Personal Health Intelligence Workspace</span><div className="topbar-right"><span className="local-indicator"/> Local environment <span className="workspace-avatar" aria-label="Kaizen workspace">K</span></div></header>
+      <nav className="foundry-rail" aria-label="Applications"><NavLink to="/" end title="Workspace overview"><Icons.overview/></NavLink><NavLink to="/object-types" title="Ontology Manager"><TypeIconSmall icon="cube"/></NavLink><NavLink to="/lineage" title="Data Lineage"><Icons.explorer/></NavLink><NavLink to="/properties" title="Property Manager"><Icons.history/></NavLink><NavLink to="/explore" title="Explore data"><Icons.weekly/></NavLink><div className="rail-bottom"><NavLink to="/history" title="Change history"><Icons.report/></NavLink></div></nav>
+      <div className="om">
+      <aside className="glass om-side" onClick={e => { if ((e.target as HTMLElement).closest("a")) setNavOpen(false); }}>
         <div className="om-brand">
-          <TypeIcon icon="cube" color="#38bdf8" size={30} />
+          <TypeIcon icon="cube" color="#2d72d2" size={26} />
           <div>
-            <div style={{ fontWeight: 700 }}>Pranay360 Ontology</div>
+            <div style={{ fontWeight: 700 }}>Ontology Manager</div>
             <div className="faint mono" style={{ fontSize: 11 }}>{q.data ? `${q.data.name} · v${q.data.version}` : "…"}</div>
           </div>
         </div>
@@ -82,7 +85,11 @@ export function OntologyManager() {
         {item("/object-types", "Object types", <TypeIconSmall icon="cube" />, q.data?.object_types.length)}
         {item("/link-types", "Link types", <TypeIconSmall icon="link" />, q.data?.link_types.length)}
         {item("/action-types", "Action types", <TypeIconSmall icon="bolt" />, q.data?.action_types.length)}
-        {item("/graph", "Graph", <Icons.explorer />)}
+        {item("/properties", "Property Manager", <Icons.history />)}
+        {item("/graph", "Ontology graph", <Icons.explorer />)}
+        <div className="om-section">Data integration</div>
+        {item("/lineage", "Data Lineage", <Icons.explorer />)}
+        {item("/history", "Change history", <Icons.report />)}
         <div className="om-section">Ideate</div>
         {item("/explore", "Explore & visualize", <Icons.weekly />)}
         {item("/workflows", "Workflows", <Icons.daily />)}
@@ -99,13 +106,12 @@ export function OntologyManager() {
           </>
         )}
         <div style={{ flex: 1 }} />
-        <button className="om-nav-item om-theme" onClick={cycle} title={`Theme: ${mode}`}>
-          {resolved === "dark" ? <Icons.moon /> : <Icons.sun />}<span>{mode === "system" ? "System theme" : mode === "dark" ? "Dark" : "Light"}</span>
-        </button>
+        <div className="om-nav-item workspace-local"><Icons.quality /><span>Local workspace</span></div>
       </aside>
       <section className="om-main">
         <Loader query={q} height={400}>{() => <Outlet />}</Loader>
       </section>
+      </div>
     </div>
   );
 }
@@ -136,56 +142,7 @@ const schemaOf = (q: ReturnType<typeof useOm>) => q.data as OntologySchema;
 
 /* ------------------------------------------------------------------ discover */
 
-function TypeCard({ t }: { t: ObjectType }) {
-  const navigate = useNavigate();
-  return (
-    <button className="glass om-card" onClick={() => navigate(`/object-types/${t.name}`)}>
-      <div className="row" style={{ gap: 10, flexWrap: "nowrap" }}>
-        <TypeIcon icon={t.icon} color={t.color} size={34} />
-        <div style={{ minWidth: 0 }}>
-          <div className="om-card-title">{displayName(t.name)}</div>
-          <div className="faint mono" style={{ fontSize: 11 }}>{t.name}</div>
-        </div>
-      </div>
-      <p className="om-card-desc">{t.description}</p>
-      <div className="om-card-foot">
-        <span><b className="num">{t.count.toLocaleString()}</b> {t.is_dataset ? "rows" : "objects"}</span>
-        <span>{t.properties.length} props</span>
-        <span>{t.links.length} links</span>
-        {t.sources.map((s) => <span key={s} className={`om-src ${s}`}>{SOURCE_LABEL[s] ?? s}</span>)}
-      </div>
-    </button>
-  );
-}
-
-export function Discover() {
-  const s = schemaOf(useOm());
-  const objects = s.object_types.filter((t) => !t.is_dataset).reduce((a, t) => a + t.count, 0);
-  return (
-    <>
-      <div className="om-hero">
-        <div>
-          <h1 className="page-title">Discover</h1>
-          <p className="page-sub">The semantic layer over your health data: {s.object_types.length} object types, {s.link_types.length} link types and {s.action_types.length} actions, backed by the clean layer and validated on every build.</p>
-        </div>
-        <div className="row" style={{ gap: 18 }}>
-          <Stat label="Objects" value={objects.toLocaleString()} />
-          <Stat label="Sources" value="CareLink · Oura · Write-back" />
-        </div>
-      </div>
-      {s.groups.map((g) => {
-        const types = s.object_types.filter((t) => t.group === g.name);
-        if (!types.length) return null;
-        return (
-          <section key={g.name} style={{ marginBottom: 22 }}>
-            <div className="section-head"><h2>{g.display_name} <span className="faint">{types.length}</span></h2><p className="muted">{g.description}</p></div>
-            <div className="om-cards">{types.map((t) => <TypeCard key={t.name} t={t} />)}</div>
-          </section>
-        );
-      })}
-    </>
-  );
-}
+export function Discover() { return <WorkspaceHome />; }
 
 const Stat = ({ label, value }: { label: string; value: string }) => (
   <div><div className="faint" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em" }}>{label}</div><div style={{ fontWeight: 650 }}>{value}</div></div>
@@ -296,10 +253,15 @@ const TABS = [
 export function ObjectTypeView() {
   const s = schemaOf(useOm());
   const { name = "", tab = "overview" } = useParams();
-  const navigate = useNavigate();
   const t = s.object_types.find((x) => x.name === name);
   if (!t) return <div className="error-box">Unknown object type {name}</div>;
   const actions = s.action_types.filter((a) => a.object_type === t.name);
+  return <ObjectTypeContent key={t.name} t={t} s={s} tab={tab} actions={actions} />;
+}
+
+function ObjectTypeContent({t,s,tab,actions}: {t:ObjectType;s:OntologySchema;tab:string;actions:ActionType[]}) {
+  const navigate=useNavigate();
+  const [configure,setConfigure]=useState(false);
   return (
     <>
       <Crumbs items={[{ label: "Ontology", to: "/" }, { label: "Object types", to: "/object-types" }, { label: displayName(t.name) }]} />
@@ -313,6 +275,7 @@ export function ObjectTypeView() {
           <div className="faint mono" style={{ fontSize: 12, margin: "2px 0 6px" }}>API name: {t.name} · ontology."{t.name}"</div>
           <p className="muted" style={{ margin: 0, maxWidth: 900 }}>{t.description}</p>
         </div>
+        <button className="btn" onClick={() => setConfigure(true)}>Configure type</button>
         <div className="om-head-stats">
           <Stat label={t.is_dataset ? "Rows" : "Objects"} value={t.count.toLocaleString()} />
           <Stat label="Properties" value={String(t.properties.length)} />
@@ -329,11 +292,12 @@ export function ObjectTypeView() {
           </button>
         ))}
       </nav>
+      {configure && <MetadataEditor type={t} onClose={() => setConfigure(false)} />}
       {tab === "overview" && <TypeOverview t={t} s={s} />}
       {tab === "properties" && <PropertiesTable t={t} />}
       {tab === "links" && <TypeLinks t={t} s={s} />}
       {tab === "datasources" && <Datasources t={t} />}
-      {tab === "actions" && <ActionsList actions={actions} s={s} empty={`No actions modify ${displayName(t.name)}. Pipeline-backed types are read-only; write-back types (Experiment, Day note) have actions.`} />}
+      {tab === "actions" && <ActionsList actions={actions} s={s} empty={`No actions modify ${displayName(t.name)}. Use Objects to edit property values through isolated overrides. Experiment and Day note also have dedicated actions.`} />}
       {tab === "objects" && <div className="glass card"><ObjectsBrowser ot={t} schema={s.object_types} height={600} /></div>}
     </>
   );
@@ -405,6 +369,7 @@ function ValueSummary({ type, prof }: { type: string; prof?: PropertyProfile }) 
 
 function PropertiesTable({ t, limit, bare = false }: { t: ObjectType; limit?: number; bare?: boolean }) {
   const [q, setQ] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
   const { data: prof } = useProfile(t.name);
   const props = t.properties.filter((p) => `${p.name} ${p.description}`.toLowerCase().includes(q.toLowerCase())).slice(0, limit);
   const fks = new Set(t.links.filter((l) => l.direction === "to_one").map((l) => l.foreign_key));
@@ -414,8 +379,8 @@ function PropertiesTable({ t, limit, bare = false }: { t: ObjectType; limit?: nu
         <thead><tr><th>Display name</th><th>API name</th><th>Base type</th><th>Keys</th><th className="r">Null</th><th className="r">Distinct</th><th>Values</th><th>Description</th></tr></thead>
         <tbody>
           {props.map((p) => (
-            <tr key={p.name} className="static">
-              <td><b>{propDisplay(p.name)}</b></td>
+            <tr key={p.name} onClick={() => setEditing(p.name)}>
+              <td><b>{p.display_name || propDisplay(p.name)}</b></td>
               <td className="mono faint">{p.name}</td>
               <td><span className={`om-type-badge ${p.type}`}>{TYPE_BADGE[p.type] ?? p.type}</span></td>
               <td>
@@ -433,7 +398,8 @@ function PropertiesTable({ t, limit, bare = false }: { t: ObjectType; limit?: nu
       </table>
     </div>
   );
-  if (bare) return table;
+  const editor = editing ? <MetadataEditor type={t} property={t.properties.find(p => p.name === editing)!} onClose={() => setEditing(null)} /> : null;
+  if (bare) return <>{table}{editor}</>;
   return (
     <>
       <div className="row" style={{ marginBottom: 10 }}>
@@ -441,6 +407,7 @@ function PropertiesTable({ t, limit, bare = false }: { t: ObjectType; limit?: nu
         <span className="faint" style={{ fontSize: 12 }}>{props.length} of {t.properties.length}</span>
       </div>
       {table}
+      {editor}
     </>
   );
 }
@@ -575,7 +542,7 @@ export function ActionTypesPage() {
     <>
       <Crumbs items={[{ label: "Ontology", to: "/" }, { label: "Action types" }]} />
       <h1 className="page-title" style={{ margin: "4px 0 2px" }}>Action types</h1>
-      <p className="page-sub" style={{ marginBottom: 14 }}>The only way the application layer writes to the ontology. Parameters are typed and validated; objects land in the write-back store, which pipeline rebuilds never touch.</p>
+      <p className="page-sub" style={{ marginBottom: 14 }}>Typed actions create experiments and notes in the write-back store. Object value overrides are managed separately from the Objects tab.</p>
       <ActionsList actions={s.action_types} s={s} empty="No action types declared." />
     </>
   );

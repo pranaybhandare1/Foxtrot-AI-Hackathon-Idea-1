@@ -1,6 +1,6 @@
-# Ontology Manager
+# Kaizen · Ontology Manager
 
-A Palantir Foundry Ontology Manager look-alike over the Pranay360 ontology. Use it to **understand the data**
+A Palantir Foundry Ontology Manager look-alike over the Kaizen health ontology. Use it to **understand the data**
 (what each object type is, how it links and what its values look like) and to **ideate what to build** on it:
 workflows, visuals and agents.
 

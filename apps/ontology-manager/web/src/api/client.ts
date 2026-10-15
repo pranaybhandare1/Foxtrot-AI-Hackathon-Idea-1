@@ -69,3 +69,20 @@ export function useApplyAction() {
     },
   });
 }
+
+export type ManagerState = { revision: string; overrides: number; changes: number; schema_file: string; edit_store: string };
+export type ChangeEntry = { id: number; created_at: string; kind: string; object_type: string; primary_key: string | null; before: Record<string, unknown>; after: Record<string, unknown> };
+export type EditContext = { object: Record<string, unknown>; base: Record<string, unknown>; overrides: Record<string, unknown>; protected: string[] };
+export type LineageNode = { id: string; label: string; layer: string; available: boolean; path?: string; object_type?: string };
+export type LineageGraph = { nodes: LineageNode[]; edges: { source: string; target: string; kind: string }[]; basis: string };
+export const useManagerState = () => useQuery({ queryKey: ["manager"], queryFn: () => getJson<ManagerState>("/management/state") });
+export const useHistory = () => useQuery({ queryKey: ["history"], queryFn: () => getJson<{ entries: ChangeEntry[] }>("/management/history") });
+export const useLineage = () => useQuery({ queryKey: ["lineage"], queryFn: () => getJson<LineageGraph>("/management/lineage") });
+export const useEditContext = (type: string, pk: string) => useQuery({ queryKey: ["edit-context", type, pk], queryFn: () => getJson<EditContext>(`/management/objects/${encodeURIComponent(type)}/${encodeURIComponent(pk)}`) });
+export function useManagerSave() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ path, body }: { path: string; body: unknown }) => postJson(`/management${path}`, body),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}

@@ -33,6 +33,7 @@ class Property:
     name: str
     type: str
     description: str = ""
+    display_name: str = ""
 
 
 @dataclass(frozen=True)
@@ -110,7 +111,7 @@ def load(path: Path = ONTOLOGY_FILE) -> Ontology:
         ont.groups[name] = Group(name, g.get("display_name", name), g.get("description", ""))
     for section, is_dataset in (("object_types", False), ("datasets", True)):
         for name, ot in (spec.get(section) or {}).items():
-            props = {p: Property(p, v["type"], v.get("description", "")) for p, v in ot["properties"].items()}
+            props = {p: Property(p, v["type"], v.get("description", ""), v.get("display_name", "")) for p, v in ot["properties"].items()}
             bad = {p.name: p.type for p in props.values() if p.type not in TYPES}
             if bad:
                 raise ValueError(f"{name}: unknown property types {bad}")

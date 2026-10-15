@@ -1,6 +1,6 @@
 /** Response types for the Ontology Manager API (apps/ontology-manager/api). */
 
-export type OntologyProperty = { name: string; type: string; description: string };
+export type OntologyProperty = { name: string; type: string; description: string; display_name?: string };
 export type OntologyLink = { name: string; many: string; one: string; foreign_key: string; direction: "to_one" | "to_many"; target: string };
 export type ObjectType = {
   name: string;

@@ -21,6 +21,7 @@ import polars as pl
 from t1d_core.settings import Config, load_config
 
 from t1d_ontology.actions import ensure_tables
+from t1d_ontology.edits import refresh_views
 from t1d_ontology.model import Ontology, load
 
 
@@ -30,10 +31,7 @@ class OntologyClient:
         self.ontology = ontology or load()
         self.con = duckdb.connect()
         ensure_tables(self.ontology, self.cfg)  # write-back tables may not exist yet on a fresh checkout
-        for ot in self.ontology.object_types.values():
-            self.con.execute(
-                f"CREATE VIEW \"{ot.name}\" AS SELECT * FROM read_parquet('{ot.path(self.cfg.layers.root)}')"
-            )
+        refresh_views(self.con, self.ontology, self.cfg)
 
     def objects(self, type_name: str) -> ObjectSet:
         if type_name not in self.ontology.object_types:

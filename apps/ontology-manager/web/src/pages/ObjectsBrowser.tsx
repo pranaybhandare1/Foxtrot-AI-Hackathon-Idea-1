@@ -7,6 +7,7 @@ import { DataTable, type Column } from "../components/DataTable";
 import { Drawer } from "../components/Drawer";
 import { Icons } from "../components/Icons";
 import { Loader } from "../components/ui";
+import { RecordEditor } from "./ManagerPages";
 import { num } from "../lib/format";
 
 type Row = Record<string, unknown>;
@@ -38,6 +39,7 @@ export function columnsFor(ot: ObjectType): Column<Row>[] {
 type Crumb = { type: string; pk: string };
 
 export function ObjectDrawer({ start, schema, onClose }: { start: Crumb; schema: ObjectType[]; onClose: () => void }) {
+  const [editing, setEditing] = useState(false);
   const [trail, setTrail] = useState<Crumb[]>([start]);
   const cur = trail[trail.length - 1];
   const q = useObject(cur.type, cur.pk);
@@ -57,11 +59,12 @@ export function ObjectDrawer({ start, schema, onClose }: { start: Crumb; schema:
           return (
             <>
               {day && <button className="btn primary" style={{ marginBottom: 14 }} onClick={() => open("Day", day)}>Open Day {day} <Icons.external /></button>}
-              <dl className="kv">
+              <div className="object-edit-toolbar"><span className="muted">Ontology object · effective values</span><button className="btn primary" onClick={() => setEditing(true)}>Edit values</button></div>
+              {editing ? <RecordEditor key={`${cur.type}:${cur.pk}`} type={typeOf(cur.type)} pk={cur.pk} onClose={() => setEditing(false)} /> : <dl className="kv">
                 {typeOf(d.type).properties.map((p) => (
                   <Fragment key={p.name}><dt title={p.description}>{p.name}</dt><dd>{fmt(d.object[p.name])}</dd></Fragment>
                 ))}
-              </dl>
+              </dl>}
               {d.links.map((l) => {
                 const target = typeOf(l.target);
                 return (
@@ -72,7 +75,7 @@ export function ObjectDrawer({ start, schema, onClose }: { start: Crumb; schema:
                     </div>
                     {l.rows.length > 0 ? (
                       <DataTable columns={columnsFor(target).slice(0, 8)} rows={l.rows} height={l.cardinality === "one" ? 80 : 240} rowHeight={32}
-                        onRowClick={target.is_dataset ? undefined : (r) => open(l.target, r[target.primary_key])} />
+                        onRowClick={(r) => open(l.target, r[target.primary_key])} />
                     ) : (
                       <div className="faint" style={{ fontSize: 12 }}>No linked objects</div>
                     )}
@@ -139,7 +142,7 @@ export function ObjectsBrowser({ ot, schema, height = 560 }: { ot: ObjectType; s
       </div>
       {objects.error ? <div className="error-box">{String(objects.error)}</div> : (
         <DataTable key={ot.name} columns={columns} rows={objects.data?.rows ?? []} height={height} stickyFirst
-          onRowClick={ot.is_dataset ? undefined : (r) => setOpen({ type: ot.name, pk: String(r[ot.primary_key]) })} />
+          onRowClick={(r) => setOpen({ type: ot.name, pk: String(r[ot.primary_key]) })} />
       )}
       {open && <ObjectDrawer key={`${open.type}:${open.pk}`} start={open} schema={schema} onClose={() => setOpen(null)} />}
     </div>

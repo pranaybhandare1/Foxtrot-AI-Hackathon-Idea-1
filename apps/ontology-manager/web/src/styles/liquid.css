@@ -1,0 +1,263 @@
+/* Kaizen: light, translucent materials over the existing workspace layout. */
+:root, :root[data-theme="light"] {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --bg: #edf7f5;
+  --glass: rgba(255,255,255,.68);
+  --glass-strong: rgba(240,252,248,.8);
+  --glass-hover: rgba(192,235,225,.65);
+  --glass-border: rgba(0,0,0,.54);
+  --glass-highlight: rgba(255,255,255,.95);
+  --glass-shadow: 0 8px 30px rgba(55,83,111,.055), inset 0 1px 0 rgba(255,255,255,.95);
+  --grid-line: rgba(0,0,0,.22);
+  --text: #000;
+  --text-muted: #000;
+  --text-faint: #000;
+  --accent: #198b83;
+  --accent-ink: #000;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --scrim: rgba(87,110,132,.14);
+  color-scheme: light;
+}
+body {
+  background: #edf7f5;
+  color: #000;
+}
+.foundry-shell {
+  background:
+    radial-gradient(ellipse at 75% 0%, rgba(129,216,208,.42), transparent 53%),
+    radial-gradient(ellipse at 10% 95%, rgba(163,216,183,.34), transparent 48%),
+    radial-gradient(ellipse at 95% 80%, rgba(190,233,214,.38), transparent 45%),
+    linear-gradient(145deg, #f7fcfa, #e7f4ef);
+}
+/* Keep every text surface black; color remains in accents, charts, and materials. */
+a, button, input, select, textarea, h1, h2, h3, h4, p, small, label, code,
+strong, b, dt, dd, td, th, time, pre,
+.foundry-wordmark, .topbar-workspace, .topbar-right, .workspace-avatar,
+.om-nav-item, .om-nav-item.on, .om-section, .om-count, .om-crumbs,
+.om-type-badge, .om-src, .chip, .tool-open, .key-label, .edited-tag,
+.delta, .good-text, .bad-text, .req, .pillar-tag, .edit-review td:nth-child(3) {
+  color: #000;
+}
+a:hover { color: #000; }
+input::placeholder, textarea::placeholder { color: #000; opacity: .65; }
+.foundry-topbar {
+  background: rgba(201,240,232,.74);
+  border-bottom: 1px solid rgba(255,255,255,.9);
+  box-shadow: 0 1px 12px rgba(51,79,105,.05), inset 0 1px 0 #fff;
+  -webkit-backdrop-filter: blur(28px) saturate(155%);
+  backdrop-filter: blur(28px) saturate(155%);
+}
+.foundry-wordmark {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -.04em;
+  gap: 9px;
+}
+.brand-mark { flex-shrink: 0; }
+.topbar-divider { background: rgba(67,93,120,.2); }
+.topbar-workspace { font-weight: 450; }
+.workspace-avatar {
+  background: rgba(157,223,207,.72);
+  border: 1px solid rgba(255,255,255,.92);
+  box-shadow: inset 0 1px 0 #fff, 0 2px 7px rgba(47,81,112,.08);
+}
+.foundry-rail {
+  background: rgba(175,225,211,.54);
+  border-right: 1px solid rgba(255,255,255,.8);
+  -webkit-backdrop-filter: blur(26px) saturate(150%);
+  backdrop-filter: blur(26px) saturate(150%);
+}
+.foundry-rail a { color: #000; border-radius: 12px; }
+.foundry-rail a:hover, .foundry-rail a.active {
+  color: #000;
+  background: rgba(255,255,255,.72);
+  box-shadow: inset 0 1px 0 #fff, 0 2px 8px rgba(49,77,105,.08);
+}
+.om-app .om-side {
+  background: rgba(223,245,236,.54);
+  border-right: 1px solid rgba(255,255,255,.88);
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  backdrop-filter: blur(28px) saturate(150%);
+}
+.om-search {
+  border-radius: 12px;
+  background: rgba(255,255,255,.65);
+  border: 1px solid rgba(255,255,255,.92);
+  box-shadow: inset 0 1px 3px rgba(72,99,125,.04), 0 2px 8px rgba(44,76,107,.025);
+}
+.om-hits { border-radius: 12px; background: rgba(255,255,255,.92); }
+.om-nav-item { border-radius: 10px; }
+.om-nav-item:hover { background: rgba(255,255,255,.55); }
+.om-nav-item.on {
+  color: #000;
+  background: linear-gradient(160deg, rgba(169,226,215,.9), rgba(200,238,222,.76));
+  border: 1px solid rgba(255,255,255,.86);
+  box-shadow: inset 0 1px 0 #fff, 0 2px 6px rgba(55,83,111,.04);
+  padding: 7px 9px;
+}
+.workspace-local { margin-top: 10px; font-size: 11px; }
+.glass, .workspace-panel, .workspace-tool, .workspace-metrics, .manager-toolbar,
+.lineage-workspace, .history-entry {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  backdrop-filter: blur(22px) saturate(140%);
+}
+.workspace-tool, .workspace-panel, .workspace-metrics { border-radius: 20px; }
+.workspace-metrics > a:first-child { border-radius: 20px 0 0 20px; }
+.workspace-metrics > a:last-child { border-radius: 0 20px 20px 0; }
+.workspace-metrics > a { border-right-color: var(--grid-line); }
+.workspace-tool {
+  background: linear-gradient(150deg, rgba(255,255,255,.85), rgba(227,247,238,.59));
+  border-color: rgba(255,255,255,.93);
+  transition: box-shadow .22s ease, border-color .22s ease, transform .22s ease;
+}
+.workspace-tool:hover {
+  transform: translateY(-2px);
+  border-color: rgba(158,191,221,.65);
+  box-shadow: 0 13px 28px rgba(65,96,128,.1), inset 0 1px 0 #fff;
+}
+.tool-icon, .type-icon { border-radius: 11px; }
+.tool-icon {
+  background: linear-gradient(145deg, #f4fffc, #bde9df);
+  box-shadow: inset 0 1px 0 #fff, 0 3px 8px rgba(49,83,114,.055);
+}
+.workspace-tool:nth-child(2) .tool-icon { background: linear-gradient(145deg, #f5fff7, #cae8d2); }
+.workspace-tool:nth-child(3) .tool-icon { background: linear-gradient(145deg, #f5fffc, #ceeade); }
+.workspace-heading h1 { font-weight: 600; letter-spacing: -.045em; }
+.workspace-heading p, .workspace-tool p { color: #000; }
+.workspace-panel-head, .resource-rows > a, .tool-open { border-color: var(--grid-line); }
+.panel-foot { background: rgba(181,227,210,.38); }
+.om-card, .card, .workflow, .history-entry { border-radius: 16px; }
+.om-table { border-radius: 14px; }
+.om-table.bare { border-radius: 10px; }
+.om-table th { background: rgba(210,239,228,.85); color: #000; }
+.om-table tbody tr:hover { background: rgba(184,228,211,.5); }
+.om-table tbody tr:last-child td { border-bottom: 0; }
+.om-type-badge, .om-src, .chip { color: #000; border-radius: 6px; }
+.om-type-badge.string, .om-type-badge.integer, .om-type-badge.double,
+.om-type-badge.boolean, .om-type-badge.date, .om-type-badge.timestamp,
+.om-src.carelink, .om-src.oura, .om-src.writeback,
+.chip.accent, .chip.good, .chip.bad, .chip.warn { color: #000; }
+.btn {
+  color: #000;
+  border-radius: 11px;
+  background: rgba(255,255,255,.7);
+  border: 1px solid rgba(131,159,185,.28);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 2px 5px rgba(58,86,112,.04);
+  transition: background .18s ease, box-shadow .18s ease;
+}
+.btn:hover { filter: none; background: rgba(255,255,255,.95); }
+.btn.primary {
+  color: #000;
+  background: linear-gradient(180deg, #a8e7dd, #81d8d0);
+  border-color: rgba(94,145,189,.38);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.88), 0 3px 8px rgba(75,118,155,.1);
+}
+.btn.primary:hover { background: linear-gradient(180deg, #b9eee4, #94ded2); }
+.btn:disabled { color: #000; opacity: .48; }
+.text-input, .select, .date-input, .sql-editor {
+  color: #000;
+  border-radius: 10px;
+  background: rgba(255,255,255,.73);
+  border-color: rgba(117,146,175,.27);
+  box-shadow: inset 0 1px 3px rgba(47,78,108,.035);
+}
+.text-input[readonly] { color: #000; background: rgba(214,237,226,.65); }
+.json, .form-note, .workflow-evidence, .key-label, .edited-tag { color: #000; border-radius: 10px; }
+.manager-toolbar { border-radius: 14px; }
+.om-tabs button { color: #000; }
+.om-tabs button.on { color: #000; border-bottom-color: #7baed9; }
+.drawer {
+  top: 58px !important;
+  right: 10px !important;
+  bottom: 10px !important;
+  max-height: calc(100vh - 68px) !important;
+  border: 1px solid rgba(255,255,255,.96) !important;
+  border-radius: 22px !important;
+  background: rgba(243,252,247,.94);
+  box-shadow: -10px 12px 50px rgba(53,82,112,.18), inset 0 1px 0 #fff !important;
+  -webkit-backdrop-filter: blur(32px) saturate(150%);
+  backdrop-filter: blur(32px) saturate(150%);
+}
+.drawer-scrim {
+  background: rgba(118,141,163,.17);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+.lineage-workspace { border-radius: 16px; }
+.lineage-canvas { background-color: rgba(221,243,231,.65); }
+.lineage-resource { border-radius: 11px; background: rgba(255,255,255,.88); box-shadow: 0 3px 10px rgba(43,78,109,.055), inset 0 1px 0 #fff; }
+.lineage-node { border-radius: 12px; }
+.lineage-inspector { background: rgba(255,255,255,.28); }
+.sidebar-toggle { color: #000; }
+@media(max-width:780px) {
+  .workspace-metrics > a:first-child, .workspace-metrics > a:last-child { border-radius: 0; }
+  .workspace-metrics { overflow: hidden; }
+}
+@media(max-width:640px) {
+  .foundry-wordmark { font-size: 16px; letter-spacing: -.04em; }
+  .brand-mark { width: 24px; height: 24px; }
+  .workspace-heading h1 { font-size: 26px; }
+  .nav-open .om-side { background: rgba(226,247,238,.96); border-radius: 0 20px 20px 0; }
+  .drawer { right: 6px !important; bottom: 6px !important; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .workspace-tool:hover { transform: none; }
+}
+@media(prefers-reduced-transparency:reduce) {
+  .glass, .workspace-panel, .workspace-tool, .workspace-metrics, .manager-toolbar,
+  .foundry-topbar, .foundry-rail, .om-app .om-side, .lineage-workspace,
+  .history-entry, .drawer { background: #eff8f3; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+/* Strong section boundaries and legible black type over the glass materials. */
+body { font-weight: 450; }
+.workspace-tool, .workspace-panel, .workspace-metrics, .om-card, .om-table,
+.card, .workflow, .history-entry, .lineage-workspace, .manager-toolbar {
+  border: 1.5px solid rgba(0,0,0,.72);
+}
+.workspace-tool:hover { border-color: #000; }
+.workspace-panel-head, .workspace-notice, .om-tabs {
+  border-bottom-color: rgba(0,0,0,.4);
+}
+.foundry-topbar { border-bottom: 1px solid rgba(0,0,0,.45); }
+.foundry-rail, .om-app .om-side { border-right: 1px solid rgba(0,0,0,.4); }
+.om-search, .text-input, .select, .date-input, .sql-editor, .btn {
+  border-color: rgba(0,0,0,.5);
+}
+.btn.primary { border-color: rgba(0,0,0,.65); }
+.om-nav-item.on { border-color: rgba(0,0,0,.5); font-weight: 650; }
+.foundry-rail a.active { box-shadow: inset 0 0 0 1px rgba(0,0,0,.55), inset 0 1px 0 #fff; }
+.workspace-heading p, .page-sub, .workspace-tool p, .om-card-desc,
+.workflow-agent, .lineage-inspector p, .activity-empty p {
+  font-weight: 500;
+}
+.workspace-heading h1, .page-title { font-weight: 650; }
+.workspace-tool h3, .workspace-panel-head h2, .workspace-section-title h2,
+.card-title, .om-card-title { font-weight: 650; }
+.om-section, .eyebrow, .om-table th { font-weight: 650; }
+.resource-rows small, .resource-count, .panel-foot, .activity-summary small,
+.om-count, .workspace-section-title > span { font-weight: 500; }
+.om-table td, .edit-review td { font-weight: 450; }
+.workspace-avatar { font-size: 10px; font-weight: 650; }
+.om-tabs button.on { border-bottom-color: #000; font-weight: 650; }
+.lineage-resource { border-color: rgba(0,0,0,.6); }
+.drawer { border: 1.5px solid rgba(0,0,0,.72) !important; }
+input::placeholder, textarea::placeholder { opacity: 1; }
+
+/* Tiffany blue and jade accents; black text stays constant. */
+.tool-icon { color: #185e56; border-color: rgba(50,112,91,.3); }
+.workspace-tool:nth-child(2) .tool-icon { color: #235b39; border-color: rgba(57,116,69,.3); }
+.workspace-tool:nth-child(3) .tool-icon { color: #245f4b; border-color: rgba(55,115,89,.3); }
+.local-indicator, .status-dot { background: #24866a; }
+.om-group-dot { background: #3c8f78; }
+.om-src.carelink, .om-type-badge.integer, .om-type-badge.double { background: #d4eee7; }
+.om-src.oura, .om-type-badge.date, .om-type-badge.timestamp { background: #daefdf; }
+.om-src.writeback, .om-type-badge.string { background: #e0f2e5; }
+.foundry-rail a.active, .foundry-rail a:hover { background: rgba(209,243,229,.85); }
+.om-nav-item.on svg { color: #1d6958; }

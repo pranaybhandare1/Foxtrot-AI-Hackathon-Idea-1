@@ -38,7 +38,7 @@ def ontology(cur=Depends(cursor)) -> dict:
             "updated_at": path.stat().st_mtime if path.exists() else None,
             "lineage": [step for src in ot.sources for step in SOURCE_LINEAGE.get(src, [])],
             "count": cur.execute(f'SELECT count(*) FROM "{ot.name}"').fetchone()[0],
-            "properties": [{"name": p.name, "type": p.type, "description": p.description} for p in ot.properties.values()],
+            "properties": [{"name": p.name, "type": p.type, "description": p.description, "display_name": p.display_name} for p in ot.properties.values()],
             "links": [
                 {"name": lt.name, "many": lt.many, "one": lt.one, "foreign_key": lt.foreign_key,
                  "direction": "to_one" if lt.many == ot.name else "to_many",

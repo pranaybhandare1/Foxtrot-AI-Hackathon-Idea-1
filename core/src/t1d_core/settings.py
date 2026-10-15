@@ -23,7 +23,7 @@ def _find_repo_root() -> Path:
 
 REPO_ROOT = _find_repo_root()
 DEFAULT_CONFIG = REPO_ROOT / "config" / "pipeline.yaml"
-ONTOLOGY_FILE = REPO_ROOT / "ontology" / "ontology.yaml"
+ONTOLOGY_FILE = Path(os.environ.get("T1D_ONTOLOGY", REPO_ROOT / "ontology" / "ontology.yaml"))
 
 
 def parse_utc_offset(text: str) -> timedelta:

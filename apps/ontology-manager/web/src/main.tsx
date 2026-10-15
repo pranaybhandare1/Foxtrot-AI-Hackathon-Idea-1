@@ -13,11 +13,14 @@ import {
   OntologyGraph,
   OntologyManager,
 } from "./pages/OntologyManager";
+import { PropertiesPage, LineagePage, HistoryPage } from "./pages/ManagerPages";
 import { WorkflowsPage } from "./pages/WorkflowsPage";
 import { ThemeProvider } from "./state/theme";
 import "./styles/tokens.css";
 import "./styles/app.css";
 import "./styles/om.css";
+import "./styles/foundry.css";
+import "./styles/liquid.css";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 5 * 60_000, refetchOnWindowFocus: false, retry: 1 } },
@@ -38,6 +41,9 @@ const router = createBrowserRouter([
       { path: "object-types/:name/:tab", element: <ObjectTypeView /> },
       { path: "link-types", element: <LinkTypesPage /> },
       { path: "action-types", element: <ActionTypesPage /> },
+      { path: "properties", element: <PropertiesPage /> },
+      { path: "lineage", element: <LineagePage /> },
+      { path: "history", element: <HistoryPage /> },
       { path: "graph", element: <OntologyGraph /> },
       { path: "explore", element: <ExplorePage /> },
       { path: "workflows", element: <WorkflowsPage /> },
