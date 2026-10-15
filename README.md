@@ -1,141 +1,212 @@
-# Pranay360 data
+# Pranay360
 
-The backend data product behind Pranay360: one person's type 1 diabetes data (Medtronic MiniMed 780G pump +
-Abbott Instinct CGM via CareLink) joined with Oura ring sleep, readiness and activity, modelled as an
-**ontology** (object types, properties, links and actions, Palantir-Foundry style) over a clean,
-validated data layer. Starting point for building models, agents and decision support on top.
+**A personal health ontology for type 1 diabetes**: insulin pump, CGM and Oura ring data, unified into one
+validated data layer and modelled as an ontology (objects, links and actions, Palantir Foundry style). It's the
+foundation for building decision support, workflows and AI agents that help manage glucose, sleep and recovery.
 
-> **Private health data.** Shared with the hackathon team only. Don't re-share, upload to third-party
-> services, or paste rows into public tools. Originals (CareLink CSVs, Oura API JSON) are *not* in this repo.
+This repo is the hackathon starting point: the data, the ontology, the pipeline code that produced it, and an
+**Ontology Manager** app for exploring the data and ideating on top of it.
 
-| | |
+> **Private health data.** Shared with the team for the hackathon only. Don't re-share, upload rows to
+> third-party services, or paste them into public tools. The original exports are not in this repo, and the
+> data carries no name or device serials.
+
+---
+
+## The person and the problem
+
+One person living with **type 1 diabetes**:
+
+- **Medtronic MiniMed 780G** insulin pump running **SmartGuard** (a closed loop that adjusts insulin every 5 min)
+- **Abbott Instinct** continuous glucose monitor (CGM), a reading every 5 minutes, since 2026-02-08
+- **Oura ring**: sleep, HRV, readiness, temperature, activity, workouts and heart rate
+- Home time zone New Jersey (America/New_York), travels often
+
+Managing T1D is a stream of daily decisions (how much insulin, when to eat, what to do before exercise or bed)
+made with data split across apps that don't talk to each other. Pranay360 brings it into one place and asks
+three questions, the **three pillars**:
+
+| Pillar | Question |
 |---|---|
-| CGM / pump days | 2026-02-08 → 2026-10-13 (248 days, 244 with ≥ 70 % CGM coverage) |
-| Oura days | 2026-02-08 → 2026-10-14 (249 days) |
-| Objects | 88,693 + time series (71,174 glucose and 42,038 heart-rate 5-min bins) |
-| Quality | 20 / 28 checks passing ([report](data/reports/data_quality.md)) |
-| Exported | 2026-10-14 |
+| **Glucose** | What is my glucose doing, and why? (meals, insulin, time of day, devices) |
+| **Sleep & recovery** | How are sleep, HRV, readiness and activity trending? |
+| **Connections** | How do they affect each other, and what should I change? |
 
-## Quickstart
+### What the data already says
 
-```bash
-make setup        # uv sync (install uv: https://docs.astral.sh/uv/)
-make validate     # data vs. ontology contract
-make quickstart   # example queries: SDK, SQL, DuckDB, polars
+Associations across the whole history (one person; descriptive, not causal):
+
+| Finding | Exposed | Baseline |
+|---|---|---|
+| Going to bed above 180 mg/dL → overnight time in range | 69 % | 85 % |
+| Bolusing after glucose already started rising → post-meal rise | +75 mg/dL | +56 mg/dL |
+| Food within 3 h of bed → overnight time in range | 73 % | 81 % |
+| Sleeping < 6.5 h → next-day time in range | 62 % | 67 % |
+| Readiness < 70 → time in range | 60 % | 66 % |
+| ≥ 10k steps → total daily insulin | 53 U | 59 U |
+| Cycling → low within 12 h | 4 of 6 rides | 24 % of other workouts |
+
+Each of these is a candidate workflow or agent behaviour: see [the Ontology Manager](#the-ontology-manager-app).
+
+---
+
+## Architecture
+
 ```
+ Sources                     Medallion pipeline (private repo)                       This repo
+ ───────                     ─────────────────────────────────                       ─────────
+ CareLink CSV  ─┐   landing ──▶ raw ──▶ transformed ──▶ clean ──▶ validate ──▶  data/clean/*.parquet
+ (pump + CGM)   │   (exact     (strings, (typed, UTC-    (one table  (against    data/ontology.duckdb
+                ├─▶  bytes,     lineage,  corrected,      per object  ontology.   ontology/ontology.yaml
+ Oura API v2  ─┘   checksums)  no PII)   deduped)        type)       yaml)       apps/ontology-manager
+```
+
+- **Medallion layers.** Each layer has a contract: landing is immutable and checksum-verified, raw keeps
+  every source row with lineage, transformed is typed and time-corrected, clean holds one table per ontology
+  object type with analysis features (glucose response per meal, overnight glucose per sleep, and so on).
+- **The hard part is time.** The pump clock is set by hand (DST, travel, typos). True UTC is reconstructed from
+  the pump's logged clock changes and cross-checked against the CGM and Oura's observed time zones
+  (207/207 nights agree). See [ADR 0004](docs/decisions/0004-pump-clock-reconstruction.md).
+- **Quality gates.** 28 checks run on every build, and an error fails it
+  ([report](data/reports/data_quality.md)).
+
+Only the clean layer and the ontology are shared here; the originals stay private. Details:
+[docs/architecture.md](docs/architecture.md), [docs/data-sources/](docs/data-sources/), [docs/decisions/](docs/decisions/).
+
+---
+
+## The ontology layer
+
+The ontology is the contract between the data and everything built on it: apps, analytics and agents speak in
+**objects and links**, not tables. It is declared in one file, [`ontology/ontology.yaml`](ontology/ontology.yaml),
+and the build **fails** if the data drifts from it. Full guide: **[docs/ONTOLOGY.md](docs/ONTOLOGY.md)**.
+
+| Concept | What it is here |
+|---|---|
+| **Object types** (19) | Day, GlucoseReading, Meal, Bolus, BolusWizardCalc, GlycemicExcursion, CgmSensor, InfusionSet, PumpAlert, PumpSuspension, FingerstickBg, ClockChange, OuraDay, SleepSession, Workout, Experiment, DayNote + time series Glucose5Min, HeartRate5Min |
+| **Properties** | Typed (string, integer, double, boolean, date, timestamp) with descriptions; primary key + title |
+| **Link types** (27) | Declared by a foreign key, e.g. `meal_bolus: Meal.bolus_id → Bolus`, `day_sleeps: SleepSession.date_local → Day` |
+| **Action types** (3) | The only way to write: `create_experiment`, `update_experiment`, `add_day_note` (typed, validated parameters) |
+| **Groups** | Calendar · Glucose · Insulin & meals · Devices & pump · Sleep & recovery · Lifestyle (write-back) |
+
+```
+                    CgmSensor ──── GlucoseReading
+                        └───────── GlycemicExcursion
+ OuraDay ──────┐
+ SleepSession ─┤
+ Workout ──────┼──── Day ────┬── Meal ── Bolus ── BolusWizardCalc
+ DayNote ──────┘             ├── PumpAlert · PumpSuspension · FingerstickBg · GlucoseReading
+                             └── CgmSensor · InfusionSet   (the sensor / set worn that day)
+ Glucose5Min ── HeartRate5Min       5-min grid, joined on bin_start_utc     ClockChange: standalone
+```
+
+`Day` (`date_local`) is the hub every source hangs off. Current coverage and row counts:
+**[docs/DATA.md](docs/DATA.md)** (regenerated on every refresh).
+
+### Using it
 
 ```python
 from t1d_ontology.client import OntologyClient
+
 ont = OntologyClient()
-ont.objects("Meal").where("meal_slot = 'lunch'").search_around("meal_bolus").to_polars()
-ont.get("Day", "2026-08-14")
+lunches = ont.objects("Meal").where("meal_slot = 'lunch' AND rise_to_peak_mgdl > 100")
+lunches.count()
+lunches.search_around("meal_bolus").to_polars()          # Meal → Bolus
+ont.get("Day", "2026-08-14")                              # one object
 ont.sql('SELECT * FROM "SleepSession" ORDER BY bedtime_start_utc DESC LIMIT 5')
 ```
 
-No Python? `data/ontology.duckdb` has one table per object type (open it in DuckDB, DBeaver, a notebook...),
-and every type is a Parquet file in `data/clean/`.
+Or skip Python: `data/ontology.duckdb` has one table per object type, and `data/clean/` has one Parquet file each.
 
-## The ontology
+---
 
-Defined in [`ontology/ontology.yaml`](ontology/ontology.yaml): the contract. The pipeline fails the build if the
-data drifts from it. Full property-level dictionary: [`data/reports/ontology_catalog.md`](data/reports/ontology_catalog.md).
+## The Ontology Manager app
 
-| Group | Object type | Kind | Rows | Primary key | What it is |
-|---|---|---|---|---|---|
-| Calendar | `Day` | object | 248 | `date_local` | One local calendar day |
-| Glucose | `GlucoseReading` | object | 81,159 | `reading_id` | One CGM value as received by the pump (Abbott Instinct) |
-| Glucose | `GlycemicExcursion` | object | 579 | `excursion_id` | A hypo (<70 for >=15 min; level 2 if <54 for >=15 min) or hyper (>250 for >=15 min) episode, with the insulin/carb context of the 4 h before it |
-| Glucose | `FingerstickBg` | object | 309 | `bg_id` | A meter BG, paired with the nearest CGM reading (+/- 5 min) for sensor-accuracy analysis |
-| Glucose | `Glucose5Min` | time series | 71,174 | `bin_start_utc` | Regular 5-min CGM grid over the whole era, gaps included (has_data = false) |
-| Insulin & meals | `Bolus` | object | 1,024 | `bolus_id` | One user-initiated bolus, assembled from its programmed / delivered / canceled fragments |
-| Insulin & meals | `BolusWizardCalc` | object | 1,065 | `wizard_id` | One Bolus Wizard calculation, meaning what you entered and what the pump recommended |
-| Insulin & meals | `Meal` | object | 935 | `meal_id` | A carb entry (wizard with carbs > 0) and its glucose response over the next 4 h |
-| Devices & pump | `CgmSensor` | object | 20 | `sensor_id` | One physical Instinct sensor, from pairing until the next sensor is paired |
-| Devices & pump | `InfusionSet` | object | 98 | `set_id` | One reservoir + infusion-set change (rewind, tubing fill, cannula fill) and its wear period |
-| Devices & pump | `PumpAlert` | object | 2,118 | `alert_id` | One pump alert or alarm, with when you cleared it |
-| Devices & pump | `PumpSuspension` | object | 426 | `suspension_id` | A period with insulin delivery stopped (by you, by an alarm, or by SmartGuard for a predicted low) |
-| Devices & pump | `ClockChange` | object | 23 | `clock_change_id` | A manual change of the pump clock (DST, travel, correction) |
-| Sleep & recovery | `OuraDay` | object | 249 | `date_local` | Oura daily summary for a day (from the start of the CGM era, including days after the latest pump export): sleep / readiness / activity / stress scores, temperature deviation, HRV, and the main night with its overnight glucose |
-| Sleep & recovery | `SleepSession` | object | 334 | `sleep_id` | One Oura sleep period (main night or nap) with sleep metrics and the glucose / insulin picture while in bed |
-| Sleep & recovery | `Workout` | object | 106 | `workout_id` | One Oura-detected or logged workout, with glucose before, during and 12 h after (delayed-low analysis) |
-| Sleep & recovery | `HeartRate5Min` | time series | 42,038 | `bin_start_utc` | Oura heart rate in 5-minute bins aligned to the glucose grid (Glucose5Min.bin_start_utc) |
+A Foundry Ontology Manager look-alike for **understanding the data** and **ideating what to build** on it.
+Source: [`apps/ontology-manager/`](apps/ontology-manager/).
 
-`Day` (`date_local`) is the hub: most types link to it. Intraday questions join on time: `Glucose5Min` and
-`HeartRate5Min` share `bin_start_utc`; events carry `ts_utc` / `start_utc`.
+```bash
+make setup     # once: Python packages (needs uv: https://docs.astral.sh/uv/)
+make om        # builds the UI and serves http://127.0.0.1:8770
+```
 
-### Link types
+| Section | What it does |
+|---|---|
+| **Discover** | Object types as cards, by group |
+| **Object types** | Each type's Overview, **Properties** (with live data profiles: null %, distinct values, ranges, top values), Link types, Datasources (lineage), Actions and **Objects** (search, filter, open an object and follow its links) |
+| **Link types · Action types · Graph** | Every relationship; every write action (run it from a generated form); the ontology as an interactive graph |
+| **Explore & visualize** | Read-only SQL over the ontology with an instant chart builder, plus starter questions that span the pillars |
+| **Workflows** | The ideation board: workflow ideas (trigger, reads, writes, visuals, agent role, evidence) from [`workflows.yaml`](apps/ontology-manager/workflows.yaml), plus which object types are still unused |
+| **Agent tools** | The ontology as typed tools for an LLM agent (query, search-around, aggregate, SQL, and actions behind confirmation). Try any call, then copy the tool definitions, the ontology primer and an example Claude agent loop |
 
-| Link | Join | |
-|---|---|---|
-| `day_readings` | GlucoseReading.date_local → Day | |
-| `day_boluses` | Bolus.date_local → Day | |
-| `day_meals` | Meal.date_local → Day | |
-| `day_excursions` | GlycemicExcursion.date_local → Day | |
-| `day_alerts` | PumpAlert.date_local → Day | |
-| `day_suspensions` | PumpSuspension.date_local → Day | |
-| `day_fingersticks` | FingerstickBg.date_local → Day | |
-| `day_sensor` | Day.sensor_id → CgmSensor | |
-| `day_set` | Day.set_id → InfusionSet | |
-| `sensor_readings` | GlucoseReading.sensor_id → CgmSensor | |
-| `sensor_meals` | Meal.sensor_id → CgmSensor | |
-| `sensor_excursions` | GlycemicExcursion.sensor_id → CgmSensor | |
-| `sensor_fingersticks` | FingerstickBg.sensor_id → CgmSensor | |
-| `set_meals` | Meal.set_id → InfusionSet | |
-| `set_excursions` | GlycemicExcursion.set_id → InfusionSet | |
-| `wizard_bolus` | BolusWizardCalc.bolus_id → Bolus | |
-| `meal_wizard` | Meal.wizard_id → BolusWizardCalc | |
-| `meal_bolus` | Meal.bolus_id → Bolus | |
-| `grid_day` | Glucose5Min.date_local → Day | |
-| `grid_sensor` | Glucose5Min.sensor_id → CgmSensor | |
-| `grid_set` | Glucose5Min.set_id → InfusionSet | |
-| `oura_day_day` | OuraDay.date_local → Day | may be unresolved (cross-source) |
-| `oura_day_main_sleep` | OuraDay.main_sleep_id → SleepSession | |
-| `day_sleeps` | SleepSession.date_local → Day | may be unresolved (cross-source) |
-| `day_workouts` | Workout.date_local → Day | may be unresolved (cross-source) |
-| `hr_grid` | HeartRate5Min.bin_start_utc → Glucose5Min | may be unresolved (cross-source) |
-| `day_notes` | DayNote.date_local → Day | |
+### Agentic intelligence: where to start
 
-### Action types (write-back)
+The agent layer is already wired: `GET /api/agent/tools?format=anthropic` returns tool definitions generated
+from the ontology, `POST /api/agent/call` executes them, and `GET /api/agent/context` is a system-prompt primer
+with the domain conventions. An agent can answer "why were my nights worse last week?" by chaining
+`aggregate` → `search_around` → `run_sql`, then propose `create_experiment`, which the user must confirm.
+See [apps/ontology-manager/README.md](apps/ontology-manager/README.md).
 
-| Action | Effect | Description |
-|---|---|---|
-| `create_experiment` | create `Experiment` | Commit to trying a change for a period; the platform tracks the metric against your baseline. |
-| `update_experiment` | modify `Experiment` | Change an experiment's status or add notes. |
-| `add_day_note` | create `DayNote` | Record context for a day (illness, stress, travel, routine change). |
+---
 
-Actions validate typed parameters and write to `data/writeback/` (git-ignored here; created empty on first use).
+## Hackathon ideas
+
+Seeded in [`workflows.yaml`](apps/ontology-manager/workflows.yaml) (add yours):
+
+1. **Morning briefing agent**: last night + today's focus, from 14-day trends.
+2. **Bedtime check-in**: catch a high or late meal before sleep (the strongest signal in the data).
+3. **Pre-bolus & meal coach**: grade each meal response and build the pre-bolus habit.
+4. **Exercise low-prevention**: Temp Target reminders before rides; watch the 12-hour delayed-low window.
+5. **Insight → experiment → result**: an agent that turns findings into 2-week experiments and reports honestly.
+6. **Endo visit prep**: a 14-day report plus questions for the endocrinologist, each backed by a chart.
+7. **Models**: predict the next 30–60 min of glucose; next-day TIR from sleep and readiness; meal-response
+   regression (carbs, pre-bolus timing, starting glucose, time of day).
+
+---
 
 ## Things to know before you model
 
-- **Time.** `*_utc` columns are true UTC, reconstructed from the pump's hand-set clock (DST, travel, typos).
-  `*_local` / `date_local` are local wall-clock time where the person actually was (home: America/New_York,
-  travels often; `Day.is_travel_day`). Never order a continuous series by local time: it repeats across time zones.
+- **Time.** `*_utc` is true UTC. `*_local` / `date_local` is wall-clock time where the person was. Never sort a
+  continuous series by local time: it repeats across time zones.
 - **Valid days.** Use `Day.is_valid_cgm_day` (≥ 70 % CGM coverage, not partial) for daily glucose metrics.
-- **Oura dating.** Oura assigns a night to the morning you wake up, so `OuraDay(d)` describes the night before `Day(d)`.
-  Oura days can run past the latest pump export; their links to `Day` are then unresolved (by design).
-- **Insulin.** `tdd_u = bolus_u + auto_insulin_u` (SmartGuard). The CareLink CSV under-counts auto-corrections
-  (≈ 5–7 U/day vs. the CareLink PDF). `InfusionSet` = reservoir fills, not necessarily tubing/site changes.
-- **Pump replaced ~2026-09-26.** Sep 25 is incomplete (gap between exports); Sep 26–27 lack daily auto-insulin totals.
-- **Meals** are Bolus Wizard carb entries only; food eaten without a wizard entry is invisible.
-- Glucose ranges: very low < 54 ≤ low < 70 ≤ in range ≤ 180 < high ≤ 250 < very high (mg/dL).
+- **Oura dating.** `OuraDay(d)` is the night that ended on the morning of `d`. Oura can run ahead of pump data;
+  those links to `Day` are unresolved by design.
+- **Insulin.** `tdd_u = bolus_u + auto_insulin_u`. The CareLink CSV under-counts SmartGuard auto-corrections
+  (~5–7 U/day). `InfusionSet` = reservoir fills (not necessarily site changes).
+- **Device events.** The pump was replaced around 2026-09-26: Sep 25 is incomplete and Sep 26–27 lack daily
+  auto-insulin totals.
+- **Meals** are Bolus Wizard carb entries only.
+- **Ranges (mg/dL):** very low < 54 ≤ low < 70 ≤ **in range** ≤ 180 < high ≤ 250 < very high. Targets: TIR > 70 %,
+  below 70 < 4 %.
+- Not medical advice: findings are for discussion with the care team.
 
-More: [`docs/architecture.md`](docs/architecture.md), [`docs/data-sources/`](docs/data-sources/) (how each source
-is parsed and corrected), [`docs/decisions/`](docs/decisions/).
+---
 
-## Layout
+## Repo layout
 
 ```
-ontology/   ontology.yaml + t1d_ontology (model, validation, actions, client SDK)
-pipelines/  t1d_pipelines: how the clean layer is built from CareLink + Oura (needs the private originals to run)
-core/       shared settings
-config/     pipeline.yaml (thresholds, time zone, source settings)
-data/clean/ the clean layer, one Parquet file per object type
-data/ontology.duckdb   the same as DuckDB tables
-data/reports/          ontology catalog + data-quality report
-examples/   quickstart.py
+apps/ontology-manager/   the Ontology Manager app: api/ (FastAPI), web/ (React), workflows.yaml
+ontology/                ontology.yaml + t1d_ontology (model, validation, actions, client SDK)
+pipelines/               how the clean layer is built (needs the private originals to run)
+core/  config/           shared settings, pipeline config
+data/clean/              the clean layer: one Parquet file per object type
+data/ontology.duckdb     the same as DuckDB tables
+data/reports/            ontology catalog (every property) + data-quality report
+docs/                    ONTOLOGY.md · DATA.md (generated) · architecture · data sources · decisions
+examples/quickstart.py   SDK, SQL, DuckDB and polars in one script
 ```
 
-## Refreshing
+| Command | |
+|---|---|
+| `make setup` | install (uv) |
+| `make validate` | check the data against the ontology contract |
+| `make test` | run the tests |
+| `make quickstart` | example queries |
+| `make om` / `make om-dev` + `make om-api` | run the Ontology Manager / develop it with hot reload |
 
-This repo is exported from the private pipeline repo (`scripts/export_data_repo.py` there) after each new
-CareLink export / Oura pull. Pull to get fresh data; don't edit `data/` by hand.
+## Refreshing the data
+
+The data comes from a private pipeline repo. After a new pump export or Oura sync, `make pipeline &&
+make export-data` there refreshes only `data/`, `ontology/`, `pipelines/`, `core/`, `config/` and the generated
+docs here; it never touches `apps/` or anything else the team adds. Pull to get fresh data, and don't hand-edit
+those folders.

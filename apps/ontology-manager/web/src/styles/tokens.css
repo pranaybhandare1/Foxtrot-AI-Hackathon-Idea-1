@@ -1,0 +1,115 @@
+/* Design tokens. Every color, radius, blur and font the app uses is defined here.
+   Dark is the default; light follows the OS or the in-app toggle (data-theme). */
+
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+
+  /* surfaces */
+  --bg: #070a14;
+  --mesh-1: #1d4ed8;
+  --mesh-2: #0d9488;
+  --mesh-3: #7c3aed;
+  --mesh-opacity: 0.42;
+  --glass: rgba(255, 255, 255, 0.055);
+  --glass-strong: rgba(255, 255, 255, 0.09);
+  --glass-hover: rgba(255, 255, 255, 0.11);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-highlight: rgba(255, 255, 255, 0.22);
+  --glass-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.65), 0 2px 8px -2px rgba(0, 0, 0, 0.35);
+  --sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.02) 38%, rgba(255, 255, 255, 0) 60%);
+  --blur: 28px;
+  --scrim: rgba(3, 6, 14, 0.55);
+
+  /* text */
+  --text: #eef2ff;
+  --text-muted: rgba(226, 232, 255, 0.66);
+  --text-faint: rgba(226, 232, 255, 0.42);
+  --grid-line: rgba(255, 255, 255, 0.07);
+
+  /* accents */
+  --accent: #7dd3fc;
+  --accent-2: #a5b4fc;
+  --accent-ink: #04121f;
+  --good: #34d399;
+  --bad: #fb7185;
+  --warn: #fbbf24;
+
+  /* clinical glucose ranges (AGP convention) */
+  --g-very-low: #c2255c;
+  --g-low: #ff5a5f;
+  --g-in: #34c77b;
+  --g-high: #ffc53d;
+  --g-very-high: #ff8a3d;
+  --target-band: rgba(52, 199, 123, 0.09);
+
+  /* therapy */
+  --insulin: #60a5fa;
+  --auto-insulin: #22d3ee;
+  --carbs: #e879f9;
+  --suspend: rgba(148, 163, 184, 0.22);
+
+  /* shape & motion */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 26px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur: 280ms;
+
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #eef2fb;
+    --mesh-1: #93c5fd;
+    --mesh-2: #5eead4;
+    --mesh-3: #c4b5fd;
+    --mesh-opacity: 0.55;
+    --glass: rgba(255, 255, 255, 0.55);
+    --glass-strong: rgba(255, 255, 255, 0.72);
+    --glass-hover: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.75);
+    --glass-highlight: rgba(255, 255, 255, 0.95);
+    --glass-shadow: 0 24px 60px -28px rgba(30, 41, 90, 0.35), 0 2px 8px -2px rgba(30, 41, 90, 0.12);
+    --sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.1) 40%, rgba(255, 255, 255, 0) 62%);
+    --scrim: rgba(226, 232, 245, 0.55);
+    --text: #0f172a;
+    --text-muted: rgba(15, 23, 42, 0.66);
+    --text-faint: rgba(15, 23, 42, 0.42);
+    --grid-line: rgba(15, 23, 42, 0.08);
+    --accent: #0369a1;
+    --accent-2: #4f46e5;
+    --accent-ink: #ffffff;
+    --target-band: rgba(52, 199, 123, 0.12);
+    --suspend: rgba(100, 116, 139, 0.18);
+    color-scheme: light;
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: #eef2fb;
+  --mesh-1: #93c5fd;
+  --mesh-2: #5eead4;
+  --mesh-3: #c4b5fd;
+  --mesh-opacity: 0.55;
+  --glass: rgba(255, 255, 255, 0.55);
+  --glass-strong: rgba(255, 255, 255, 0.72);
+  --glass-hover: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.75);
+  --glass-highlight: rgba(255, 255, 255, 0.95);
+  --glass-shadow: 0 24px 60px -28px rgba(30, 41, 90, 0.35), 0 2px 8px -2px rgba(30, 41, 90, 0.12);
+  --sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.1) 40%, rgba(255, 255, 255, 0) 62%);
+  --scrim: rgba(226, 232, 245, 0.55);
+  --text: #0f172a;
+  --text-muted: rgba(15, 23, 42, 0.66);
+  --text-faint: rgba(15, 23, 42, 0.42);
+  --grid-line: rgba(15, 23, 42, 0.08);
+  --accent: #0369a1;
+  --accent-2: #4f46e5;
+  --accent-ink: #ffffff;
+  --target-band: rgba(52, 199, 123, 0.12);
+  --suspend: rgba(100, 116, 139, 0.18);
+  color-scheme: light;
+}

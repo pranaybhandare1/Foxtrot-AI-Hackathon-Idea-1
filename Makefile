@@ -1,5 +1,8 @@
-.PHONY: help setup validate test quickstart sql
+.PHONY: help setup validate test quickstart sql om om-dev om-api
 UV := $(shell command -v uv 2>/dev/null)
+WEB := apps/ontology-manager/web
+# Node comes from the nodejs-wheel dev dependency (no system Node needed)
+NPM := PATH="$(CURDIR)/.venv/bin:$$PATH" npm
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -18,3 +21,13 @@ quickstart: ## Run the example queries
 
 sql: ## Open the portable DuckDB file (needs the duckdb CLI)
 	duckdb data/ontology.duckdb
+
+om: ## Build the Ontology Manager UI and serve it at http://127.0.0.1:8770
+	cd $(WEB) && $(NPM) install --no-audit --no-fund --silent && $(NPM) run build
+	$(UV) run ontology-manager
+
+om-api: ## Run only the Ontology Manager API (auto-reload) on :8770
+	OM_RELOAD=1 $(UV) run ontology-manager
+
+om-dev: ## UI dev server with hot reload on :5174 (run `make om-api` in another terminal)
+	cd $(WEB) && $(NPM) install --no-audit --no-fund --silent && $(NPM) run dev

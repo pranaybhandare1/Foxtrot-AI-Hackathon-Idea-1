@@ -1,0 +1,74 @@
+/* Standalone Ontology Manager: app frame and the Ideate pages (shared tokens / components come from app.css). */
+
+.om-app { position: relative; z-index: 1; height: 100vh; overflow-y: auto; padding: 14px 18px 40px; }
+.om-app .om-side { top: 0; max-height: calc(100vh - 28px); }
+.om-theme { border: 0; background: none; font: inherit; cursor: pointer; margin-top: 10px; }
+.om-values { max-width: 340px; }
+.om-values .chip { font-size: 11px; padding: 1px 7px; }
+
+.pillar-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* explore */
+.explore { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 14px; align-items: start; }
+.explore-side { position: sticky; top: 0; }
+.sql-editor {
+  width: 100%;
+  min-height: 170px;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  outline: none;
+}
+:root[data-theme="light"] .sql-editor { background: rgba(255, 255, 255, 0.6); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .sql-editor { background: rgba(255, 255, 255, 0.6); } }
+.sql-editor:focus { border-color: var(--accent); }
+.json {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 360px;
+  overflow: auto;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(127, 127, 127, 0.1);
+  color: var(--text-muted);
+}
+
+/* agent */
+.agent { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 14px; align-items: start; }
+
+/* workflows */
+.workflow-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); gap: 14px; }
+.workflow { padding: 16px 18px; border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: 10px; }
+.workflow-title { margin: 4px 0 2px; font-size: 16px; font-weight: 700; }
+.workflow-agent { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.workflow-agent b { color: var(--text); }
+.workflow-evidence {
+  margin: 0;
+  font-size: 12.5px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
+}
+.workflow-steps { margin: 0; padding-left: 20px; font-size: 12.5px; color: var(--text-muted); display: flex; flex-direction: column; gap: 3px; }
+.workflow-row { display: grid; grid-template-columns: 60px 1fr; gap: 8px; align-items: start; font-size: 12px; }
+.workflow-row .chip { font-size: 11px; }
+.coverage { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr)); gap: 6px 24px; }
+.coverage-row { display: grid; grid-template-columns: 170px 1fr 24px; gap: 10px; align-items: center; font-size: 12.5px; }
+.insight-track { height: 9px; border-radius: 5px; background: rgba(127, 127, 127, 0.14); overflow: hidden; }
+.insight-track > div { height: 100%; border-radius: 5px; }
+
+@media (max-width: 1000px) {
+  .explore, .agent { grid-template-columns: 1fr; }
+  .explore-side { position: static; }
+}

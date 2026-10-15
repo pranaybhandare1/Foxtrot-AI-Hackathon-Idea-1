@@ -1,0 +1,120 @@
+# Workflow ideas: the application layer we want to build on the ontology. Edit freely; the Ontology Manager
+# renders this file (Ideate → Workflows) and links every object type / action back to the ontology.
+#
+#   status:   idea | prototype | live
+#   pillar:   glucose | recovery | connections | platform
+#   reads:    object types the workflow needs          writes: action types it calls
+#   evidence: why it matters (numbers from this dataset, all-history unless stated)
+#   agent:    what an AI agent does in it (tools: see Ideate → Agent tools)
+
+workflows:
+  - id: morning_briefing
+    title: Morning briefing
+    pillar: connections
+    status: prototype
+    trigger: Every morning after the Oura night syncs
+    reads: [Day, OuraDay, SleepSession, Glucose5Min, GlycemicExcursion]
+    writes: [add_day_note]
+    visuals: [Overnight glucose with sleep stages band, 14-day KPI tiles with sparklines, Readiness vs. time in range]
+    agent: >
+      Summarises last night (sleep, overnight TIR, lows, bedtime → wake glucose) against the 14-day baseline,
+      flags anything unusual and proposes one focus for the day. Asks before logging a note.
+    evidence: Sleep < 6.5 h → next-day TIR 62 % vs 67 % (≥ 7.5 h).
+    steps:
+      - Load last night's SleepSession and the overnight Glucose5Min window
+      - Compare with the previous 14 days (Day + OuraDay)
+      - Generate a 3-line briefing and one suggestion
+      - "Optional: user adds a note (illness, alcohol, stress)"
+
+  - id: bedtime_checkin
+    title: Bedtime check-in
+    pillar: connections
+    status: idea
+    trigger: Usual bedtime window, or glucose > 180 after 22:00
+    reads: [Glucose5Min, Meal, Bolus, SleepSession]
+    writes: [add_day_note]
+    visuals: [Last 3 h glucose with active insulin, 'Outcome of nights like tonight']
+    agent: >
+      Notices a high going-to-bed glucose or a late meal and suggests the correction the Bolus Wizard would give,
+      30–60 min before lying down. Shows how similar nights ended.
+    evidence: Bed > 180 → overnight TIR 69 % vs 85 %. Food within 3 h of bed → 73 % vs 81 %.
+
+  - id: meal_coach
+    title: Pre-bolus & meal coach
+    pillar: glucose
+    status: idea
+    trigger: After each Meal (3 h window closes)
+    reads: [Meal, Bolus, BolusWizardCalc, Glucose5Min]
+    writes: [create_experiment]
+    visuals: [Meal response curve vs. your typical curve for that slot, Rise vs. pre-bolus timing scatter]
+    agent: >
+      Grades each meal response, explains it (late bolus, carb estimate, starting glucose) and tracks the
+      pre-bolus habit over time. Lunch gets special attention.
+    evidence: Bolused while already rising → +75 vs +56 mg/dL. Lunch rise 78 vs 70.
+
+  - id: exercise_guard
+    title: Exercise low-prevention
+    pillar: connections
+    status: idea
+    trigger: Workout detected (Oura) or planned ride
+    reads: [Workout, Glucose5Min, PumpSuspension, Meal]
+    visuals: [Glucose 2 h before → 12 h after each workout, Low rate by activity]
+    agent: >
+      Before a ride: reminds to set a Temp Target and carry carbs. After: watches the 12-hour delayed-low window
+      and warns early.
+    evidence: Cycling followed by a low within 12 h in 4 of 6 rides (24 % for other workouts).
+
+  - id: experiment_loop
+    title: Insight → experiment → result
+    pillar: platform
+    status: prototype
+    trigger: User accepts a "try it" suggestion
+    reads: [Day, Meal, OuraDay, Workout]
+    writes: [create_experiment, update_experiment]
+    visuals: [Metric during experiment vs. 28-day baseline, Experiment timeline]
+    agent: >
+      Turns a finding into a 2-week experiment with one tracked metric, checks in mid-way and writes up the
+      result (with n and an honest "too early to tell").
+
+  - id: endo_prep
+    title: Endocrinologist visit prep
+    pillar: glucose
+    status: prototype
+    trigger: 1 week before an appointment
+    reads: [Day, Glucose5Min, Meal, BolusWizardCalc, PumpSuspension, InfusionSet, CgmSensor]
+    visuals: [AGP (percentile) profile, Time in ranges, Meal-slot summary, Settings history]
+    agent: >
+      Drafts the 14-day report plus 3–5 questions for the endo (e.g. lunch carb ratio, suspend-before-low
+      frequency, overnight highs), each backed by a chart.
+
+  - id: recovery_watch
+    title: Sick-day & recovery watch
+    pillar: recovery
+    status: idea
+    trigger: Skin temperature ≥ +0.5 °C or HRV well below baseline
+    reads: [OuraDay, Day, SleepSession]
+    writes: [add_day_note]
+    visuals: [Temperature deviation vs. total daily insulin, HRV trend]
+    agent: Warns that insulin needs usually rise on these days and asks whether to log illness or stress.
+    evidence: Low-HRV days need ~3 U/day more insulin; readiness < 70 → TIR 60 % vs 66 %.
+
+  - id: pump_change_monitor
+    title: Device & settings change monitor
+    pillar: glucose
+    status: idea
+    trigger: New pump, new sensor, settings change
+    reads: [Day, CgmSensor, InfusionSet, BolusWizardCalc, PumpAlert]
+    visuals: [Before / after comparison of TIR, auto-insulin share and suspend time]
+    agent: >
+      Detects changes (e.g. the pump replacement around 2026-09-26) and compares the weeks before and after,
+      separating real shifts from noise.
+
+  - id: travel_mode
+    title: Travel mode
+    pillar: glucose
+    status: idea
+    trigger: Time-zone change (ClockChange) or Oura observed offset differs from home
+    reads: [ClockChange, Day, SleepSession]
+    visuals: [Glucose on travel days vs. home, Time-zone timeline]
+    agent: Reminds to update the pump clock, re-times meal patterns and tracks jet-lag nights.
+    evidence: Travel days TIR 61 % vs 65 % at home.

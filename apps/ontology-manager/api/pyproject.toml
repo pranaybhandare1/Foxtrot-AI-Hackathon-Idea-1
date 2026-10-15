@@ -1,0 +1,17 @@
+[project]
+name = "om-api"
+version = "0.1.0"
+description = "Ontology Manager API: ontology metadata, objects, profiling, read-only SQL, actions and agent tools"
+requires-python = ">=3.12"
+dependencies = ["t1d-core", "t1d-ontology", "fastapi>=0.120", "uvicorn>=0.38", "duckdb>=1.5", "polars>=1.44", "pyarrow>=21", "pyyaml>=6"]
+
+[project.scripts]
+ontology-manager = "om_api.main:run"
+
+[tool.uv.sources]
+t1d-core = { workspace = true }
+t1d-ontology = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"
